@@ -1,6 +1,6 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Models;
+namespace Elcreator\aIMage\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

@@ -1,7 +1,7 @@
 <?php
 
-use EvolutionCMS\aIMage\Support\ApiKeys;
-use EvolutionCMS\aIMage\Support\Crypt;
+use Elcreator\aIMage\Support\ApiKeys;
+use Elcreator\aIMage\Support\Crypt;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 /**

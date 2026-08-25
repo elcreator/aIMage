@@ -1,11 +1,11 @@
 <?php
 
-use EvolutionCMS\aIMage\Console\BatchHandler;
-use EvolutionCMS\aIMage\Models\Job;
-use EvolutionCMS\aIMage\Models\JobStep;
-use EvolutionCMS\aIMage\Models\Message;
-use EvolutionCMS\aIMage\Support\ApiKeys;
-use EvolutionCMS\aIMage\Support\JobQueue;
+use Elcreator\aIMage\Console\BatchHandler;
+use Elcreator\aIMage\Models\Job;
+use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Models\Message;
+use Elcreator\aIMage\Support\ApiKeys;
+use Elcreator\aIMage\Support\JobQueue;
 
 beforeEach(fn () => aimageReset());
 
@@ -206,7 +206,7 @@ test('a parked step is polled at most once per slice', function () {
         {
         }
 
-        protected function buildClient(string $apiKey): \EvolutionCMS\aIMage\Gateway\Client
+        protected function buildClient(string $apiKey): \Elcreator\aIMage\Gateway\Client
         {
             return aimageClientWithout($this->gateway);
         }

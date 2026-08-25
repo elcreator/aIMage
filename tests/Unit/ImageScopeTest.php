@@ -1,6 +1,6 @@
 <?php
 
-use EvolutionCMS\aIMage\Support\ImageScope;
+use Elcreator\aIMage\Support\ImageScope;
 
 /**
  * The permission boundary.

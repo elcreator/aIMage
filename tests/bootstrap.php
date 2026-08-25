@@ -28,7 +28,7 @@ require $core . '/vendor/autoload.php';
 
 // This package's own namespace.
 spl_autoload_register(static function (string $class): void {
-    $prefix = 'EvolutionCMS\\aIMage\\';
+    $prefix = 'Elcreator\\aIMage\\';
 
     if (!str_starts_with($class, $prefix)) {
         return;

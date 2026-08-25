@@ -1,9 +1,9 @@
 <?php
 
-namespace EvolutionCMS\aIMage;
+namespace Elcreator\aIMage;
 
-use EvolutionCMS\aIMage\Console\BatchHandler;
-use EvolutionCMS\aIMage\Support\Config;
+use Elcreator\aIMage\Console\BatchHandler;
+use Elcreator\aIMage\Support\Config;
 use EvolutionCMS\ServiceProvider;
 use EvolutionCMS\Services\SystemTasks\SystemTaskRegistry;
 

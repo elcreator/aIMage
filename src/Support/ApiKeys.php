@@ -1,6 +1,6 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Support;
+namespace Elcreator\aIMage\Support;
 
 use EvolutionCMS\Models\SystemSetting;
 use EvolutionCMS\Models\UserSetting;

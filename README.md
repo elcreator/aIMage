@@ -39,7 +39,7 @@ seeded latency prior is labelled an estimate rather than dressed up as a measure
 
 ```bash
 cd core
-php artisan package:installrequire evolution-cms/a-image "*"
+php artisan package:installrequire elcreator/aimage "*"
 php artisan migrate
 ```
 

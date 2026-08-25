@@ -1,6 +1,6 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Models;
+namespace Elcreator\aIMage\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -56,7 +56,7 @@ class Message extends Model
     /**
      * This row as one entry of a canonical transcript.
      *
-     * @see \EvolutionCMS\aIMage\Gateway\Dialect
+     * @see \Elcreator\aIMage\Gateway\Dialect
      */
     public function toTranscriptEntry(): array
     {

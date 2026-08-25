@@ -1,10 +1,10 @@
 <?php
 
-use EvolutionCMS\aIMage\Console\BatchHandler;
-use EvolutionCMS\aIMage\Models\Job;
-use EvolutionCMS\aIMage\Models\JobStep;
-use EvolutionCMS\aIMage\Support\ApiKeys;
-use EvolutionCMS\aIMage\Support\JobQueue;
+use Elcreator\aIMage\Console\BatchHandler;
+use Elcreator\aIMage\Models\Job;
+use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Support\ApiKeys;
+use Elcreator\aIMage\Support\JobQueue;
 use EvolutionCMS\Models\SystemCliTask;
 
 /**
@@ -128,7 +128,7 @@ function aimageSlice(Job $job, array $gatewayResponses = [], array $downloads = 
 
         // The handler builds its own client from the manager's key; this
         // overrides just that seam so the suite never touches the network.
-        protected function buildClient(string $apiKey): \EvolutionCMS\aIMage\Gateway\Client
+        protected function buildClient(string $apiKey): \Elcreator\aIMage\Gateway\Client
         {
             return aimageClientWithout($this->gateway);
         }
@@ -322,7 +322,7 @@ test('progress is reported back to the worker', function () {
         {
         }
 
-        protected function buildClient(string $apiKey): \EvolutionCMS\aIMage\Gateway\Client
+        protected function buildClient(string $apiKey): \Elcreator\aIMage\Gateway\Client
         {
             return aimageClientWithout($this->gateway);
         }

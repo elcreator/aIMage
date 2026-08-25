@@ -1,6 +1,6 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Gateway;
+namespace Elcreator\aIMage\Gateway;
 
 /**
  * What one operation, or a whole plan, is expected to cost and how long it is

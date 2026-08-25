@@ -1,9 +1,9 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Http\Controllers;
+namespace Elcreator\aIMage\Http\Controllers;
 
-use EvolutionCMS\aIMage\Gateway\GatewayException;
-use EvolutionCMS\aIMage\Gateway\ModelCatalog;
+use Elcreator\aIMage\Gateway\GatewayException;
+use Elcreator\aIMage\Gateway\ModelCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

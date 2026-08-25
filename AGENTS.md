@@ -12,8 +12,8 @@ a cross-server worker carries it out against the **ai.artur.work** gateway while
 watching. The terminal result is always changed images — text, voice and previews are
 intermediate only.
 
-- Package `evolution-cms/a-image` · type `evolutioncms-plugin`
-- Namespace `EvolutionCMS\aIMage\` → `src/`
+- Package `elcreator/aimage` · type `evolutioncms-plugin`
+- Namespace `Elcreator\aIMage\` → `src/`
 - PHP 8.3+ · MIT
 
 ---

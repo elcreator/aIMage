@@ -1,9 +1,9 @@
 <?php
 
-use EvolutionCMS\aIMage\Agent\Tools;
-use EvolutionCMS\aIMage\Models\Job;
-use EvolutionCMS\aIMage\Models\JobStep;
-use EvolutionCMS\aIMage\Support\ImageScope;
+use Elcreator\aIMage\Agent\Tools;
+use Elcreator\aIMage\Models\Job;
+use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Support\ImageScope;
 
 /**
  * The boundary between what a language model says and what gets queued.
@@ -266,7 +266,7 @@ test('an upscale is pinned to the gateway\'s fixed model, not the chosen one', f
 
     $step = JobStep::query()->first();
 
-    expect($step->model)->toBe(\EvolutionCMS\aIMage\Gateway\ModelCatalog::UPSCALE_MODEL)
+    expect($step->model)->toBe(\Elcreator\aIMage\Gateway\ModelCatalog::UPSCALE_MODEL)
         ->and($step->param('scale'))->toBe(4);
 });
 

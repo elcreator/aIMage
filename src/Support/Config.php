@@ -1,6 +1,6 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Support;
+namespace Elcreator\aIMage\Support;
 
 /**
  * Typed access to `cms.settings.aIMage`.

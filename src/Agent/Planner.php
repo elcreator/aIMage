@@ -1,16 +1,16 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Agent;
+namespace Elcreator\aIMage\Agent;
 
-use EvolutionCMS\aIMage\Gateway\Client;
-use EvolutionCMS\aIMage\Gateway\Dialect;
-use EvolutionCMS\aIMage\Gateway\Estimator;
-use EvolutionCMS\aIMage\Gateway\GatewayException;
-use EvolutionCMS\aIMage\Gateway\ModelCatalog;
-use EvolutionCMS\aIMage\Models\Job;
-use EvolutionCMS\aIMage\Models\Message;
-use EvolutionCMS\aIMage\Support\Config;
-use EvolutionCMS\aIMage\Support\ImageScope;
+use Elcreator\aIMage\Gateway\Client;
+use Elcreator\aIMage\Gateway\Dialect;
+use Elcreator\aIMage\Gateway\Estimator;
+use Elcreator\aIMage\Gateway\GatewayException;
+use Elcreator\aIMage\Gateway\ModelCatalog;
+use Elcreator\aIMage\Models\Job;
+use Elcreator\aIMage\Models\Message;
+use Elcreator\aIMage\Support\Config;
+use Elcreator\aIMage\Support\ImageScope;
 
 /**
  * Turns a conversation into a batch, one turn at a time.

@@ -1,9 +1,9 @@
 <?php
 
-use EvolutionCMS\aIMage\Agent\Executor;
-use EvolutionCMS\aIMage\Models\Job;
-use EvolutionCMS\aIMage\Models\JobStep;
-use EvolutionCMS\aIMage\Support\ImageScope;
+use Elcreator\aIMage\Agent\Executor;
+use Elcreator\aIMage\Models\Job;
+use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Support\ImageScope;
 use GuzzleHttp\Psr7\Response;
 
 /**
@@ -163,7 +163,7 @@ test('an upscale is polled under the literal upscale segment, not its model', fu
 
     $step = aimageStep($job, [
         'type' => JobStep::TYPE_UPSCALE,
-        'model' => \EvolutionCMS\aIMage\Gateway\ModelCatalog::UPSCALE_MODEL,
+        'model' => \Elcreator\aIMage\Gateway\ModelCatalog::UPSCALE_MODEL,
         'source_path' => 'images/a.png',
         'params_json' => ['scale' => 2, 'folder' => 'aimage'],
     ]);

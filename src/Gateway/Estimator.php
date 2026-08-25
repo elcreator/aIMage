@@ -1,6 +1,6 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Gateway;
+namespace Elcreator\aIMage\Gateway;
 
 /**
  * Turns a catalogue entry into the two numbers the manager asked for before

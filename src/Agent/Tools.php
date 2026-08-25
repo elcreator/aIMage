@@ -1,14 +1,14 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Agent;
+namespace Elcreator\aIMage\Agent;
 
-use EvolutionCMS\aIMage\Gateway\Estimate;
-use EvolutionCMS\aIMage\Gateway\Estimator;
-use EvolutionCMS\aIMage\Gateway\ModelCatalog;
-use EvolutionCMS\aIMage\Models\Job;
-use EvolutionCMS\aIMage\Models\JobStep;
-use EvolutionCMS\aIMage\Support\Config;
-use EvolutionCMS\aIMage\Support\ImageScope;
+use Elcreator\aIMage\Gateway\Estimate;
+use Elcreator\aIMage\Gateway\Estimator;
+use Elcreator\aIMage\Gateway\ModelCatalog;
+use Elcreator\aIMage\Models\Job;
+use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Support\Config;
+use Elcreator\aIMage\Support\ImageScope;
 
 /**
  * What the planner is allowed to do, and what happens when it does it.

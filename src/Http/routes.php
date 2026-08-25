@@ -1,10 +1,10 @@
 <?php
 
-use EvolutionCMS\aIMage\Http\Controllers\CatalogController;
-use EvolutionCMS\aIMage\Http\Controllers\JobController;
-use EvolutionCMS\aIMage\Http\Controllers\PageController;
-use EvolutionCMS\aIMage\Http\Controllers\SettingsController;
-use EvolutionCMS\aIMage\Http\Controllers\VoiceController;
+use Elcreator\aIMage\Http\Controllers\CatalogController;
+use Elcreator\aIMage\Http\Controllers\JobController;
+use Elcreator\aIMage\Http\Controllers\PageController;
+use Elcreator\aIMage\Http\Controllers\SettingsController;
+use Elcreator\aIMage\Http\Controllers\VoiceController;
 use Illuminate\Support\Facades\Route;
 
 /**

@@ -1,6 +1,6 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Gateway;
+namespace Elcreator\aIMage\Gateway;
 
 /**
  * Translation between one canonical transcript and the gateway's two dialects.

@@ -1,6 +1,6 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Gateway;
+namespace Elcreator\aIMage\Gateway;
 
 use RuntimeException;
 

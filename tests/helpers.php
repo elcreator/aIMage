@@ -1,8 +1,8 @@
 <?php
 
-use EvolutionCMS\aIMage\Models\Job;
-use EvolutionCMS\aIMage\Models\JobStep;
-use EvolutionCMS\aIMage\Models\Message;
+use Elcreator\aIMage\Models\Job;
+use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Models\Message;
 use EvolutionCMS\Models\SystemCliTask;
 use Illuminate\Container\Container;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -185,7 +185,7 @@ function aimageReset(): void
         @unlink($cached);
     }
 
-    \EvolutionCMS\aIMage\Support\ApiKeys::flush();
+    \Elcreator\aIMage\Support\ApiKeys::flush();
 }
 
 /** mkdir -p that stays quiet when the directory is already there. */
@@ -357,7 +357,7 @@ function aimageModelsJson(): string
  *
  * @param array<int, \GuzzleHttp\Psr7\Response|\Throwable> $responses served in order
  */
-function aimageClient(array $responses = []): \EvolutionCMS\aIMage\Gateway\Client
+function aimageClient(array $responses = []): \Elcreator\aIMage\Gateway\Client
 {
     $queue = array_merge(
         // Every catalogue-using path asks for the model list first.
@@ -367,7 +367,7 @@ function aimageClient(array $responses = []): \EvolutionCMS\aIMage\Gateway\Clien
 
     $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler($queue));
 
-    return new \EvolutionCMS\aIMage\Gateway\Client(
+    return new \Elcreator\aIMage\Gateway\Client(
         'test-key',
         'https://ai.artur.work/api/v1',
         new \GuzzleHttp\Client(['handler' => $stack, 'http_errors' => false])
@@ -383,28 +383,28 @@ function aimageClient(array $responses = []): \EvolutionCMS\aIMage\Gateway\Clien
  *
  * @param array<int, \GuzzleHttp\Psr7\Response|\Throwable> $responses
  */
-function aimageClientWithout(array $responses): \EvolutionCMS\aIMage\Gateway\Client
+function aimageClientWithout(array $responses): \Elcreator\aIMage\Gateway\Client
 {
     $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler($responses));
 
-    return new \EvolutionCMS\aIMage\Gateway\Client(
+    return new \Elcreator\aIMage\Gateway\Client(
         "test-key",
         "https://ai.artur.work/api/v1",
         new \GuzzleHttp\Client(["handler" => $stack, "http_errors" => false])
     );
 }
 /** A catalogue over the fixture snapshot, with no live network behind it. */
-function aimageCatalog(): \EvolutionCMS\aIMage\Gateway\ModelCatalog
+function aimageCatalog(): \Elcreator\aIMage\Gateway\ModelCatalog
 {
-    $catalog = new \EvolutionCMS\aIMage\Gateway\ModelCatalog(aimageClient());
+    $catalog = new \Elcreator\aIMage\Gateway\ModelCatalog(aimageClient());
     $catalog->snapshot(true);
 
     return $catalog;
 }
 
-function aimageEstimator(): \EvolutionCMS\aIMage\Gateway\Estimator
+function aimageEstimator(): \Elcreator\aIMage\Gateway\Estimator
 {
-    return new \EvolutionCMS\aIMage\Gateway\Estimator(aimageCatalog());
+    return new \Elcreator\aIMage\Gateway\Estimator(aimageCatalog());
 }
 
 /** A JSON gateway response. */

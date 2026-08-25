@@ -1,8 +1,8 @@
 <?php
 
-namespace EvolutionCMS\aIMage\Gateway;
+namespace Elcreator\aIMage\Gateway;
 
-use EvolutionCMS\aIMage\Support\Config;
+use Elcreator\aIMage\Support\Config;
 use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;

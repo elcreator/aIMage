@@ -1,9 +1,9 @@
 {
-  "name": "evolution-cms/a-image",
+  "name": "elcreator/aimage",
   "description": "AIMage — an AI image workbench for the Evolution CMS manager: describe a batch of image work in text or by voice, let a text model plan it, and let a cross-server worker carry it out against ai.artur.work while you are away.",
   "type": "evolutioncms-plugin",
   "keywords": ["evo", "evocms", "evolution", "evolution-cms", "ai", "image", "batch", "upscale", "generation"],
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "require": {
     "php": "^8.3",
     "evolution-cms/evolution": "^3.5.2",
@@ -14,7 +14,7 @@
   },
   "autoload": {
     "psr-4": {
-      "EvolutionCMS\\aIMage\\": "src/"
+      "Elcreator\\aIMage\\": "src/"
     }
   },
   "scripts": {
@@ -23,7 +23,7 @@
   "extra": {
     "laravel": {
       "providers": [
-        "EvolutionCMS\\aIMage\\aIMageServiceProvider"
+        "Elcreator\\aIMage\\aIMageServiceProvider"
       ]
     }
   },
