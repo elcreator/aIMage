@@ -52,7 +52,13 @@
          disabled behind it. --}}
     <section class="ai-panel ai-key-panel" id="ai-key-panel" hidden>
         <h2>{{ __('aIMage::global.key_needed_title') }}</h2>
-        <p>{{ __('aIMage::global.key_needed_body') }}</p>
+        {{-- The gateway name in the copy doubles as a link to the profile page
+             where a key can be created; the text itself is escaped first. --}}
+        <p>{!! str_replace(
+            'ai.artur.work',
+            '<a href="https://ai.artur.work/profile" target="_blank">ai.artur.work</a>',
+            e(__('aIMage::global.key_needed_body'))
+        ) !!}</p>
 
         <div class="ai-key-form">
             <label for="ai-key-input">{{ __('aIMage::global.key_your_own') }}</label>
