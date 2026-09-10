@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Опишіть пачку роботи із зображеннями; вона виконується у фоновому режимі.',
+    'tagline' => 'Опишіть потрібну роботу із зображеннями; вона виконується у фоновому режимі.',
     'denied' => 'У вас немає дозволу користуватися AIMage.',
 
-    'new_job' => 'Нова пачка',
-    'jobs' => 'Пачки',
+    'new_job' => 'Нове завдання',
+    'jobs' => 'Завдання',
     'no_jobs' => 'Поки що порожньо. Опишіть, що потрібно зробити.',
     'instruction_placeholder' => 'напр.: збільшити всі зображення в products/ або згенерувати 10 зображень гірського озера на світанку',
     'send' => 'Надіслати',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Модель зображень',
     'voice_model' => 'Модель розпізнавання мовлення',
     'output_folder' => 'Тека результатів',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Розмір',
+    'control_quality' => 'Якість',
+    'control_background' => 'Фон',
+    'control_aspect_ratio' => 'Співвідношення сторін',
     'model_provider' => 'через :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Готово',
     'status_failed' => 'Помилка',
     'status_cancelled' => 'Скасовано',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'У черзі',
+    'status_polling' => 'Очікування',
+    'status_skipped' => 'Пропущено',
 
     'approve' => 'Підтвердити та запустити',
     'cancel_job' => 'Скасувати',
@@ -62,6 +72,9 @@ return [
     'progress' => 'готово :done з :total',
     'failed_count' => 'з помилкою: :n',
     'reply_placeholder' => 'Відповідь…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'Ви',
+    'turn_assistant' => 'Асистент',
 
     // Steps
     'step_generate' => 'Генерація',
@@ -87,7 +100,7 @@ return [
     'key_cleared' => 'Ключ видалено.',
 
     // Batching health
-    'batching_unavailable' => 'Фонове виконання недоступне, тож робота сама не запуститься.',
+    'batching_unavailable' => 'Фонова обробка недоступна, тож робота сама не запуститься.',
     'batching_not_registered' => 'Тип завдань AIMage не зареєстровано в цій інсталяції Evolution CMS.',
     'batching_scheduler_down' => 'Планувальник не працює. Запустіть його командою «php core/artisan schedule:work» або '
         . 'налаштуйте cron на виклик «schedule:run» щохвилини.',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'Ключ API не налаштовано ні для вас, ні для цього сайту.',
     'error_empty_instruction' => 'Напишіть, що потрібно зробити.',
     'error_unknown_model' => 'Шлюз не пропонує моделі :kind з назвою «:model».',
+    'error_model_cannot_continue' => '«:model» не може виконати роботу «:step», яка тут уже в черзі.',
     'error_folder_denied' => 'Вам недоступний запис у «:folder».',
-    'error_job_not_found' => 'Такої пачки немає або вона не ваша.',
-    'error_job_finished' => 'Цю пачку вже завершено.',
-    'error_not_awaiting_approval' => 'Ця пачка не очікує на підтвердження.',
+    'error_job_not_found' => 'Такого завдання немає або воно не ваше.',
+    'error_job_finished' => 'Це завдання вже завершено.',
+    'error_not_awaiting_approval' => 'Це завдання не очікує на підтвердження.',
     'error_key_from_config' => 'Ключ сайту задано в конфігурації, і його не можна змінити тут.',
     'error_key_rejected' => 'Шлюз відхилив цей ключ.',
     'error_no_audio' => 'Аудіо не отримано.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'З цього запису не вдалося нічого розпізнати.',
     'error_empty_text' => 'Немає чого озвучувати.',
     'error_speech_disabled' => 'Озвучування відповідей не налаштоване.',
+    'error_voice_disabled' => 'Голосове введення й озвучування для цього сайту вимкнено.',
+
+    // The file browser.
+    'files_browse' => 'Огляд…',
+    'files_title' => 'Файли',
+    'files_up' => 'Вгору',
+    'files_use_folder' => 'Складати результати сюди',
+    'files_here' => 'Результати потрапляють сюди',
+    'files_empty' => 'У цій теці нічого немає.',
+    'files_resolution' => 'Роздільність',
+    'files_bytes' => 'Розмір',
+    'files_modified' => 'Змінено',
+    'files_url' => 'URL',
+    'files_copy' => 'Копіювати',
+    'files_copied' => 'Скопійовано',
+    'files_unknown' => 'Невідомо',
+    'files_not_writable' => 'Сюди не можна записувати результати.',
+    'files_close' => 'Закрити',
+    'files_locate' => 'Показати, де цей файл',
+    'error_file_not_found' => 'Це зображення не існує, або ви не можете його бачити.',
 ];

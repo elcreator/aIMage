@@ -34,12 +34,17 @@ Route::get('/estimate', [CatalogController::class, 'estimate'])->name('aimage.es
 // Scoped browsing. Everything returned here has already been filtered through
 // the manager's own file-group permissions.
 Route::get('/files', [CatalogController::class, 'files'])->name('aimage.files');
+Route::get('/files/info', [CatalogController::class, 'fileInfo'])->name('aimage.files.info');
 
 Route::post('/jobs', [JobController::class, 'store'])->name('aimage.jobs.store');
 Route::get('/jobs', [JobController::class, 'index'])->name('aimage.jobs.index');
 Route::get('/jobs/{uuid}', [JobController::class, 'show'])->name('aimage.jobs.show');
 Route::post('/jobs/{uuid}/reply', [JobController::class, 'reply'])->name('aimage.jobs.reply');
 Route::post('/jobs/{uuid}/approve', [JobController::class, 'approve'])->name('aimage.jobs.approve');
+
+// The model pickers belong to whichever task is open, not to the page, so
+// changing one has to reach that task rather than the next thing created.
+Route::post('/jobs/{uuid}/models', [JobController::class, 'models'])->name('aimage.jobs.models');
 Route::post('/jobs/{uuid}/cancel', [JobController::class, 'cancel'])->name('aimage.jobs.cancel');
 
 // Speech in, and optionally speech out. Both are intermediate: the terminal

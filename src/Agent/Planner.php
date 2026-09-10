@@ -186,9 +186,24 @@ class Planner
             );
         }
 
-        $job->forceFill(['approved_at' => now()])->save();
+        $message = $summary !== '' ? $summary : 'Running.';
 
-        return ['status' => Job::STATUS_RUNNING, 'message' => $summary !== '' ? $summary : 'Running.'];
+        // Cheap enough to run unattended — but the transition still has to be
+        // written down. The returned array is a report, not an instruction:
+        // nothing downstream reads its `status` and applies it, so a job left
+        // `planning` here would be handed back to the planner on every later
+        // slice, paying for a turn each time, while the steps it had already
+        // queued never ran. This mirrors `JobController::approve()`, which is
+        // the same transition taken by hand.
+        $job->forceFill([
+            'status' => Job::STATUS_RUNNING,
+            'approved_at' => now(),
+            'message' => mb_substr($message, 0, 255),
+            'error_code' => '',
+            'updated_at' => now(),
+        ])->save();
+
+        return ['status' => Job::STATUS_RUNNING, 'message' => $message];
     }
 
     /**
@@ -212,15 +227,34 @@ class Planner
         ) && $recent->count() === 2;
 
         if ($consecutiveProse) {
+            // Twice in a row is not going to become a tool call, so what it
+            // said is shown to the manager — minus any function syntax it wrote
+            // out as prose, which is ours and means nothing to them.
+            $shown = Message::stripToolSyntax($text);
+
             return $this->stop(
                 $job,
                 Job::STATUS_AWAITING_INPUT,
                 '',
-                $text !== '' ? $text : 'The assistant did not propose any image work.'
+                $shown !== '' ? $shown : 'The assistant did not propose any image work.'
             );
         }
 
+        // The turn that earned the nudge was a misfire, not an answer — often
+        // with the model's own attempt at tool-call syntax written out in it —
+        // so it is machinery too. It stays in the transcript, where the model
+        // needs to see what it did, and leaves the thread.
+        $misfire = $recent->first();
+
+        if ($misfire !== null) {
+            $misfire->forceFill(['internal' => true])->save();
+        }
+
+        // Written as a `user` turn because that is the role the model has to
+        // receive an instruction in, and flagged internal because the manager
+        // did not type it and should not be shown it as though they had.
         Message::record((int) $job->getKey(), Message::ROLE_USER, [
+            'internal' => true,
             'text' => 'Do not reply with prose. This plugin only produces images. Either call one of the planning '
                 . 'tools to queue the work, or call ask_user with a specific question.',
         ]);
@@ -274,9 +308,19 @@ class Planner
             $controlLines !== [] ? "Its accepted controls:\n" . implode("\n", $controlLines) : '',
             'Upscaling always uses ' . ModelCatalog::UPSCALE_MODEL . ', whatever the selected model is.',
             '',
-            'Files: paths are relative to the manager\'s own file area, and they may only see part of the site. Never '
-            . 'invent a path — call ' . Tools::LIST_IMAGES . ' and use what it returns. Results are written to "'
-            . $outputFolder . '" unless you name another folder. Originals are never overwritten.',
+            'Files: paths are relative to the manager\'s own file area, and they may only see part of the site.',
+            'Source paths must be real. Never invent one — call ' . Tools::LIST_IMAGES . ' and use what it returns.',
+            'Destination folders are the opposite: they need not exist. A manager who says "put them in 123/45" '
+            . 'means a folder "45" inside a folder "123", both created for them, and you pass "123/45" as the '
+            . 'folder — do not ask whether it exists, do not look for the nearest existing folder instead, and do '
+            . 'not fall back to the default because you could not find it. The same applies to edits, variations '
+            . 'and upscales.',
+            'Results go to "' . $outputFolder . '" unless the manager names a folder, and every destination is '
+            . 'placed under ' . ($scope->writeRootRelative() === ''
+                ? 'the manager\'s own file root'
+                : '"' . $scope->writeRootRelative() . '"')
+            . ' whatever you pass, so a folder outside it is corrected rather than obeyed. Originals are never '
+            . 'overwritten.',
             'Allowed image extensions: ' . implode(', ', $scope->allowedExtensions()) . '.',
             'At most ' . (int) Config::limit('max_images_per_job', 200) . ' images per job.',
             '',

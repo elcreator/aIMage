@@ -30,6 +30,10 @@ class VoiceController extends Controller
             return $this->denied();
         }
 
+        if (!Config::feature('voice')) {
+            return $this->fail('voice_disabled', __('aIMage::global.error_voice_disabled'), 409);
+        }
+
         $client = $this->client();
 
         if ($client === null) {
@@ -94,6 +98,10 @@ class VoiceController extends Controller
     {
         if (!$this->authorized()) {
             return $this->denied();
+        }
+
+        if (!Config::feature('voice')) {
+            return $this->fail('voice_disabled', __('aIMage::global.error_voice_disabled'), 409);
         }
 
         $client = $this->client();

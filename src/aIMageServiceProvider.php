@@ -74,7 +74,7 @@ class aIMageServiceProvider extends ServiceProvider
             'mode' => SystemTaskRegistry::MODE_CONCURRENT,
             'parallelism' => max(1, (int) Config::limit('parallelism', 3)),
             'permissions' => ['aimage'],
-            'label' => 'AIMage batch',
+            'label' => 'AIMage task',
         ]);
     }
 

@@ -30,6 +30,25 @@ return [
         'catalog_ttl' => 3600,
     ],
 
+    /**
+     * Optional parts of the workbench, off unless a site turns them on.
+     *
+     * A feature behind a flag is off in the interface *and* at the endpoint.
+     * Hiding a button while the route it calls still answers is not a switch,
+     * it is a decoration.
+     */
+    'features' => [
+        /**
+         * The microphone and the read-aloud button.
+         *
+         * Off by default: both send audio to the gateway, both cost money per
+         * use, and dictating into a manager is a choice a site should make
+         * rather than inherit. `AIMAGE_VOICE=1` in the environment turns them
+         * on, as does a `features.voice` override in the site's settings.
+         */
+        'voice' => (bool) env('AIMAGE_VOICE', false),
+    ],
+
     'defaults' => [
         /** The planner. Must be a model whose actions include respondChat. */
         'text_model' => env('AIMAGE_TEXT_MODEL', 'claude-sonnet-5'),
@@ -70,7 +89,18 @@ return [
     ],
 
     'files' => [
-        /** Written results land here, relative to the manager's own file-manager root. */
+        /**
+         * Written results land here, relative to the write root.
+         *
+         * The write root is the narrower of the manager's file-manager root
+         * and the image browser's root (`rb_base_dir`, `assets/` by default),
+         * so a confined manager gets this folder inside their own area and an
+         * unconfined one gets it inside `assets/`. Those are two different
+         * settings and they routinely disagree: a folder outside the browser's
+         * root holds files nobody can insert from the *Insert image* dialog.
+         *
+         * See `Support\ImageScope::resolveWriteFolder()`.
+         */
         'output_folder' => 'aimage',
         /**
          * Whether a result may overwrite the file it was derived from.

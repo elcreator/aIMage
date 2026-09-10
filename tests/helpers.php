@@ -152,10 +152,25 @@ function aimageCreateCmsTables(Capsule $capsule): void
  * suite is about. It guards every write with `Schema::hasTable()`, so it is a
  * no-op here anyway.
  */
+/**
+ * Every migration the package ships, in the order the CMS would run them.
+ *
+ * Not one named file. Naming one means the suite tests a schema that stops
+ * matching the package the first time a migration is added — the column is
+ * missing, and the failure surfaces as "no such column" in whichever test
+ * happened to use it rather than as anything to do with migrations.
+ *
+ * The later migrations guard themselves with `Schema::hasTable()`, so the ones
+ * that touch CMS tables this harness does not create simply do nothing.
+ */
 function aimageRunPackageMigrations(): void
 {
-    $migration = require dirname(__DIR__) . '/database/migrations/2026_08_24_000001_create_aimage_tables.php';
-    $migration->up();
+    $files = glob(dirname(__DIR__) . '/database/migrations/*.php') ?: [];
+    sort($files);
+
+    foreach ($files as $file) {
+        (require $file)->up();
+    }
 }
 
 /**

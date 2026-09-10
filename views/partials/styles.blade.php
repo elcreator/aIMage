@@ -18,6 +18,14 @@
        light palette rather than guessing at a dark one. */
     * { box-sizing: border-box; }
 
+    /* The `hidden` attribute is how everything on this page is shown and
+       hidden, and the browser implements it as `[hidden] { display: none }` in
+       the UA stylesheet — which any class selector that sets `display`
+       outranks. A rule as ordinary as `.ai-modal { display: flex }` therefore
+       pins the dialog open, with the attribute set correctly and no error
+       anywhere to say so. This puts the attribute back in charge. */
+    [hidden] { display: none !important; }
+
     body {
         margin: 0;
         background: var(--ai-bg);
@@ -79,9 +87,12 @@
 
     .ai-compose-row { display: flex; gap: 0.75rem; margin-top: 0.9rem; align-items: flex-start; }
     .ai-compose-row textarea { flex: 1; }
-    .ai-compose-actions { display: flex; flex-direction: column; gap: 0.4rem; min-width: 9rem; }
-    .ai-toggle { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: var(--ai-muted); }
-    .ai-toggle input { width: auto; }
+    /* Send on top; dictate and read-aloud share the line beneath it. The
+       column is as wide as Send, and the two icons stretch to fill that, so the
+       pair lines up with the button above however long the label translates. */
+    .ai-compose-actions { display: flex; flex-direction: column; gap: 0.4rem; }
+    .ai-compose-icons { display: flex; gap: 0.4rem; }
+    .ai-compose-icons .ai-btn-icon { flex: 1 1 auto; width: auto; }
 
     .ai-btn {
         font: inherit; padding: 0.45rem 0.8rem; border-radius: 5px; cursor: pointer;
@@ -93,8 +104,18 @@
     .ai-btn-primary:hover:not(:disabled) { background: #2760b8; }
     .ai-btn-danger { color: var(--ai-danger); border-color: #e9c4c0; }
     .ai-btn-small { padding: 0.25rem 0.55rem; font-size: 0.8rem; }
-    .ai-btn-mic { width: 2.4rem; text-align: center; }
+    .ai-btn-icon { width: 2.4rem; text-align: center; flex: 0 0 auto; }
+    /* touch-action so holding the button to talk does not scroll the page. */
+    .ai-btn-mic { touch-action: none; user-select: none; }
+    .ai-btn-toggle.is-on { background: var(--ai-accent); border-color: var(--ai-accent); color: #fff; }
+    .ai-btn-toggle.is-on:hover:not(:disabled) { background: var(--ai-accent); opacity: 0.85; }
     .ai-btn-mic.is-recording { background: var(--ai-danger); border-color: var(--ai-danger); color: #fff; }
+    /* The generic hover is a class-plus-two-pseudos and outranks the rule above,
+       so without this the button turns near-white the moment the pointer rests
+       on it — while it is recording, which is when it most needs to look live.
+       Hovering a button that is already doing something should acknowledge the
+       pointer, not repaint the state. */
+    .ai-btn-mic.is-recording:hover:not(:disabled) { background: var(--ai-danger); opacity: 0.85; }
 
     .ai-row { display: flex; gap: 0.5rem; align-items: center; }
     .ai-row input { flex: 1; }
@@ -130,7 +151,8 @@
     .ai-turn .ai-turn-role { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ai-muted); }
     .ai-turn p { margin: 0.2rem 0 0; white-space: pre-wrap; }
 
-    .ai-reply { display: flex; gap: 0.5rem; margin-top: 0.9rem; }
+    .ai-reply { display: flex; gap: 0.5rem; margin-top: 0.9rem; align-items: flex-start; }
+    .ai-reply textarea { flex: 1; min-height: 2.6rem; }
 
     .ai-steps { margin-top: 1.1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.7rem; }
     .ai-step { border: 1px solid var(--ai-border); border-radius: 7px; overflow: hidden; background: #fff; }
@@ -144,5 +166,88 @@
     .ai-step-placeholder {
         height: 118px; display: flex; align-items: center; justify-content: center;
         color: var(--ai-muted); font-size: 0.75rem; background: var(--ai-bg);
+    }
+
+    /* A result opens the browser where it landed. */
+    .ai-step figure.is-locatable { cursor: zoom-in; }
+    .ai-step figure.is-locatable:hover img { outline: 2px solid var(--ai-accent); outline-offset: -2px; }
+    .ai-step figure.is-locatable:hover figcaption { color: var(--ai-accent); }
+
+    /* The file browser. */
+    .ai-folder-row { display: flex; gap: 0.35rem; }
+    .ai-folder-row input { flex: 1 1 auto; min-width: 0; }
+
+    .ai-modal {
+        position: fixed; inset: 0; z-index: 40; display: flex;
+        align-items: center; justify-content: center; padding: 1.5rem;
+        background: rgba(35, 40, 45, 0.45);
+    }
+    .ai-modal-box {
+        background: var(--ai-panel); border: 1px solid var(--ai-border); border-radius: 8px;
+        width: min(1000px, 100%); max-height: 100%; display: flex; flex-direction: column;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    }
+    .ai-modal-head {
+        display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+        padding: 0.75rem 1rem; border-bottom: 1px solid var(--ai-border);
+    }
+    .ai-modal-head h2 { margin: 0; font-size: 0.95rem; }
+
+    .ai-files-bar {
+        display: flex; align-items: center; gap: 0.6rem;
+        padding: 0.6rem 1rem; border-bottom: 1px solid var(--ai-border);
+    }
+    .ai-crumbs {
+        flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center;
+        gap: 0.15rem; font-size: 0.82rem; color: var(--ai-muted);
+    }
+    .ai-crumb {
+        background: none; border: 0; padding: 0.1rem 0.2rem; font: inherit;
+        color: var(--ai-accent); cursor: pointer; border-radius: 3px;
+    }
+    .ai-crumb:hover { background: var(--ai-accent-soft); }
+    /* Above the ceiling: shown so the path reads correctly, but not a link. */
+    .ai-crumb.is-fixed { color: var(--ai-muted); cursor: default; }
+    .ai-crumb.is-current { color: var(--ai-text); font-weight: 600; cursor: default; }
+
+    .ai-files-body { display: flex; min-height: 0; flex: 1 1 auto; }
+    .ai-files-list {
+        flex: 1 1 auto; overflow: auto; padding: 0.75rem;
+        display: grid; gap: 0.5rem; align-content: start;
+        grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    }
+    .ai-entry {
+        display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+        padding: 0.5rem 0.35rem; background: none; font: inherit; color: inherit;
+        border: 1px solid transparent; border-radius: 6px; cursor: pointer; overflow: hidden;
+    }
+    .ai-entry:hover { background: var(--ai-bg); border-color: var(--ai-border); }
+    .ai-entry.is-selected { background: var(--ai-accent-soft); border-color: var(--ai-accent); }
+    .ai-entry-icon { font-size: 1.9rem; line-height: 1; color: var(--ai-muted); }
+    .ai-entry-folder .ai-entry-icon { color: var(--ai-accent); }
+    .ai-turn-spoken { font-size: 0.72rem; opacity: 0.75; }
+    .ai-entry img { width: 100%; height: 68px; object-fit: cover; border-radius: 4px; background: var(--ai-bg); }
+    .ai-entry-name {
+        font-size: 0.74rem; width: 100%; text-align: center;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .ai-files-preview {
+        width: 270px; flex: 0 0 270px; overflow: auto;
+        padding: 0.75rem; border-left: 1px solid var(--ai-border);
+    }
+    .ai-files-preview h3 { margin: 0.5rem 0 0.6rem; font-size: 0.85rem; word-break: break-all; }
+    .ai-preview-image {
+        width: 100%; max-height: 200px; object-fit: contain;
+        background: var(--ai-bg); border-radius: 4px;
+    }
+    .ai-meta { display: flex; justify-content: space-between; gap: 0.5rem; margin: 0.3rem 0; font-size: 0.76rem; }
+    .ai-meta span { color: var(--ai-muted); }
+    .ai-meta-url { flex-direction: column; gap: 0.25rem; }
+    .ai-meta-url input { width: 100%; font-size: 0.72rem; }
+
+    @media (max-width: 760px) {
+        .ai-files-body { flex-direction: column; }
+        .ai-files-preview { width: auto; flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--ai-border); }
     }
 </style>

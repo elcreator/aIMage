@@ -91,7 +91,9 @@ class Tools
             ],
             [
                 'name' => self::LIST_FOLDERS,
-                'description' => 'List folders the manager may use, to choose where results should be written.',
+                'description' => 'List folders that already exist, to see how the file area is arranged. Results '
+                    . 'do not have to go in one of them: a destination folder is created if it is not there yet, '
+                    . 'so use this to understand the layout, not to decide what is a legal destination.',
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
@@ -103,7 +105,7 @@ class Tools
             [
                 'name' => self::PLAN_GENERATE,
                 'description' => 'Queue generation of new images from a text prompt. This does not run now — it adds '
-                    . 'steps to the batch, which is carried out afterwards. At most ' . $maxImages . ' images per job.',
+                    . 'steps to the task, which is carried out afterwards. At most ' . $maxImages . ' images per job.',
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
@@ -113,7 +115,12 @@ class Tools
                         'quality' => ['type' => 'string', 'description' => 'Optional. Must be one the chosen model supports.'],
                         'background' => ['type' => 'string', 'description' => 'Optional, e.g. transparent, for models that support it.'],
                         'basename' => ['type' => 'string', 'description' => 'Optional file name stem for the results.'],
-                        'folder' => ['type' => 'string', 'description' => 'Optional destination folder. Defaults to the job\'s output folder.'],
+                        'folder' => [
+                            'type' => 'string',
+                            'description' => 'Optional destination folder, relative to the file area of this '
+                                . 'manager. It need not exist: a nested path such as "123/45" creates a folder '
+                                . '"123" and a folder "45" inside it. Defaults to the output folder of the job.',
+                        ],
                     ],
                     'required' => ['prompt'],
                 ],
@@ -133,7 +140,12 @@ class Tools
                         'prompt' => ['type' => 'string', 'description' => 'What to change about each image.'],
                         'size' => ['type' => 'string'],
                         'quality' => ['type' => 'string'],
-                        'folder' => ['type' => 'string', 'description' => 'Optional destination folder.'],
+                        'folder' => [
+                            'type' => 'string',
+                            'description' => 'Optional destination folder, relative to the file area of this '
+                                . 'manager. It need not exist: a nested path such as "123/45" creates a folder '
+                                . '"123" and a folder "45" inside it. Defaults to the output folder of the job.',
+                        ],
                     ],
                     'required' => ['paths', 'prompt'],
                 ],
@@ -147,7 +159,12 @@ class Tools
                         'paths' => ['type' => 'array', 'items' => ['type' => 'string']],
                         'count' => ['type' => 'integer', 'description' => 'Variations per image. Defaults to 1.'],
                         'prompt' => ['type' => 'string', 'description' => 'Optional steer; ignored by providers whose variation endpoint takes no prompt.'],
-                        'folder' => ['type' => 'string'],
+                        'folder' => [
+                            'type' => 'string',
+                            'description' => 'Optional destination folder, relative to the file area of this '
+                                . 'manager. It need not exist: a nested path such as "123/45" creates a folder '
+                                . '"123" and a folder "45" inside it. Defaults to the output folder of the job.',
+                        ],
                     ],
                     'required' => ['paths'],
                 ],
@@ -161,7 +178,12 @@ class Tools
                     'properties' => [
                         'paths' => ['type' => 'array', 'items' => ['type' => 'string']],
                         'scale' => ['type' => 'integer', 'description' => 'Factor, typically 2 or 4. Defaults to 2.'],
-                        'folder' => ['type' => 'string'],
+                        'folder' => [
+                            'type' => 'string',
+                            'description' => 'Optional destination folder, relative to the file area of this '
+                                . 'manager. It need not exist: a nested path such as "123/45" creates a folder '
+                                . '"123" and a folder "45" inside it. Defaults to the output folder of the job.',
+                        ],
                     ],
                     'required' => ['paths'],
                 ],
@@ -191,7 +213,7 @@ class Tools
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
-                        'summary' => ['type' => 'string', 'description' => 'One sentence describing what the batch will do.'],
+                        'summary' => ['type' => 'string', 'description' => 'One sentence describing what the task will do.'],
                     ],
                     'required' => ['summary'],
                 ],
@@ -499,21 +521,23 @@ class Tools
      * Defaults to the job's own output folder, which itself defaults to the
      * configured one — so a plan that never mentions a destination still lands
      * somewhere predictable rather than in the file root.
+     *
+     * A folder that does not exist yet is not an error: "put them in 123/45"
+     * is a normal instruction, and both folders are created under the write
+     * root when the first result is written. What `resolveWriteFolder()`
+     * refuses is a path that would leave that root, not one that has yet to be
+     * made.
      */
     private function destinationFolder(array $input): ?string
     {
         $requested = trim((string) ($input['folder'] ?? ''));
-        $folder = $requested !== ''
-            ? $requested
-            : ((string) $this->job->output_folder ?: $this->scope->outputFolder());
+        $folder = $this->scope->resolveWriteFolder(
+            $requested !== ''
+                ? $requested
+                : ((string) $this->job->output_folder ?: $this->scope->outputFolder())
+        );
 
-        $folder = trim(str_replace('\\', '/', $folder), '/');
-
-        if ($folder === '') {
-            return null;
-        }
-
-        if ($this->scope->absoluteOf($folder) === null) {
+        if ($folder === null) {
             return null;
         }
 

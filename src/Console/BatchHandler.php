@@ -132,8 +132,10 @@ class BatchHandler implements SystemTaskHandlerInterface
         if ($job->isRunnable()) {
             // More to do. Queue the successor before returning, so a crash
             // between here and the worker's bookkeeping still leaves the job
-            // moving.
-            JobQueue::enqueue($job);
+            // moving. This task is excluded from the "one pending slice at a
+            // time" guard: it is still `running` at this point, and counting
+            // itself would mean no successor was ever queued.
+            JobQueue::enqueue($job, (int) $task->getKey());
 
             return [
                 'message' => 'Advanced ' . $advanced . ' step(s); ' . $job->progressPercent() . '% complete.',
@@ -221,10 +223,17 @@ class BatchHandler implements SystemTaskHandlerInterface
      *
      * A job whose steps all failed is a failed job, not a successful one with
      * nothing to show — the manager asked for images and got none.
+     *
+     * A plan that is still being made is not judged at all. The planner is told
+     * to look before it plans, so its first turn is routinely a bare
+     * `list_images` that queues nothing, and a job counted by its steps at that
+     * moment has none — which would fail every batch that did as it was told,
+     * edits and upscales above all, since those cannot be planned without
+     * listing first.
      */
     private function settleIfComplete(Job $job): void
     {
-        if (!$job->isRunnable()) {
+        if (!$job->isRunnable() || (string) $job->status === Job::STATUS_PLANNING) {
             return;
         }
 
@@ -241,6 +250,10 @@ class BatchHandler implements SystemTaskHandlerInterface
 
         if ($total === 0) {
             // Running with no steps at all means the plan produced nothing.
+            // `finish` refuses to end a plan with nothing queued, so reaching
+            // this is a bug somewhere above rather than a normal outcome — but
+            // a job silently stuck running forever would be worse than a job
+            // that says so.
             $this->fail($job, 'EMPTY_PLAN', 'The plan contained no image work.');
 
             return;

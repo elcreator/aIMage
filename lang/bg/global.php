@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Опишете партида работа с изображения; тя се изпълнява във фонов режим.',
+    'tagline' => 'Опишете нужната работа с изображения; тя се изпълнява във фонов режим.',
     'denied' => 'Нямате права да използвате AIMage.',
 
-    'new_job' => 'Нова партида',
-    'jobs' => 'Партиди',
+    'new_job' => 'Нова задача',
+    'jobs' => 'Задачи',
     'no_jobs' => 'Още няма нищо. Опишете какво искате да се направи.',
     'instruction_placeholder' => 'напр.: увеличи всички изображения в products/ или генерирай 10 изображения на планинско езеро на зазоряване',
     'send' => 'Изпрати',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Модел за изображения',
     'voice_model' => 'Модел за диктовка',
     'output_folder' => 'Папка с резултати',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Размер',
+    'control_quality' => 'Качество',
+    'control_background' => 'Фон',
+    'control_aspect_ratio' => 'Съотношение на страните',
     'model_provider' => 'през :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Готово',
     'status_failed' => 'Неуспех',
     'status_cancelled' => 'Отменено',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'На опашка',
+    'status_polling' => 'Изчакване',
+    'status_skipped' => 'Пропуснато',
 
     'approve' => 'Одобри и стартирай',
     'cancel_job' => 'Отмени',
@@ -62,6 +72,9 @@ return [
     'progress' => 'готови :done от :total',
     'failed_count' => 'с грешка: :n',
     'reply_placeholder' => 'Отговор…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'Вие',
+    'turn_assistant' => 'Асистент',
 
     // Steps
     'step_generate' => 'Генериране',
@@ -87,7 +100,7 @@ return [
     'key_cleared' => 'Ключът е премахнат.',
 
     // Batching health
-    'batching_unavailable' => 'Фоновото изпълнение е недостъпно, така че работата няма да тръгне сама.',
+    'batching_unavailable' => 'Фоновата обработка е недостъпна, затова работата няма да се стартира сама.',
     'batching_not_registered' => 'Типът задачи на AIMage не е регистриран в тази инсталация на Evolution CMS.',
     'batching_scheduler_down' => 'Планировчикът не работи. Стартирайте го с „php core/artisan schedule:work“ или '
         . 'настройте cron да извиква „schedule:run“ всяка минута.',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'Не е настроен API ключ нито за вас, нито за този сайт.',
     'error_empty_instruction' => 'Напишете какво искате да се направи.',
     'error_unknown_model' => 'Шлюзът не предлага модел :kind с име „:model“.',
+    'error_model_cannot_continue' => '„:model“ не може да извърши работата „:step“, която вече е на опашката тук.',
     'error_folder_denied' => 'Нямате право да записвате в „:folder“.',
-    'error_job_not_found' => 'Такава партида не съществува или не е ваша.',
-    'error_job_finished' => 'Тази партида вече е приключила.',
-    'error_not_awaiting_approval' => 'Тази партида не чака одобрение.',
+    'error_job_not_found' => 'Такава задача не съществува или не е ваша.',
+    'error_job_finished' => 'Тази задача вече е приключила.',
+    'error_not_awaiting_approval' => 'Тази задача не чака одобрение.',
     'error_key_from_config' => 'Ключът на сайта е зададен в конфигурацията и не може да се променя оттук.',
     'error_key_rejected' => 'Шлюзът отхвърли този ключ.',
     'error_no_audio' => 'Не е получено аудио.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'От този запис не можа да се разпознае нищо.',
     'error_empty_text' => 'Няма какво да се изчете на глас.',
     'error_speech_disabled' => 'Изчитането на отговорите на глас не е настроено.',
+    'error_voice_disabled' => 'Гласовият вход и четенето на глас са изключени за този сайт.',
+
+    // The file browser.
+    'files_browse' => 'Преглед…',
+    'files_title' => 'Файлове',
+    'files_up' => 'Нагоре',
+    'files_use_folder' => 'Резултатите тук',
+    'files_here' => 'Резултатите отиват тук',
+    'files_empty' => 'В тази папка няма нищо.',
+    'files_resolution' => 'Резолюция',
+    'files_bytes' => 'Размер',
+    'files_modified' => 'Променен',
+    'files_url' => 'URL',
+    'files_copy' => 'Копирай',
+    'files_copied' => 'Копирано',
+    'files_unknown' => 'Неизвестно',
+    'files_not_writable' => 'Резултатите не могат да се запишат тук.',
+    'files_close' => 'Затвори',
+    'files_locate' => 'Показване къде е този файл',
+    'error_file_not_found' => 'Това изображение не съществува или нямате достъп до него.',
 ];

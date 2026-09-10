@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Beschrijf een batch beeldwerk; die wordt op de achtergrond uitgevoerd.',
+    'tagline' => 'Beschrijf het beeldwerk dat u nodig hebt; het wordt op de achtergrond uitgevoerd.',
     'denied' => 'U hebt geen toestemming om AIMage te gebruiken.',
 
-    'new_job' => 'Nieuwe batch',
-    'jobs' => 'Batches',
+    'new_job' => 'Nieuwe taak',
+    'jobs' => 'Taken',
     'no_jobs' => 'Nog niets. Beschrijf wat er moet gebeuren.',
     'instruction_placeholder' => 'bijv. alle afbeeldingen in products/ opschalen, of 10 afbeeldingen van een bergmeer bij zonsopgang genereren',
     'send' => 'Verzenden',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Afbeeldingsmodel',
     'voice_model' => 'Dicteermodel',
     'output_folder' => 'Resultatenmap',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Grootte',
+    'control_quality' => 'Kwaliteit',
+    'control_background' => 'Achtergrond',
+    'control_aspect_ratio' => 'Beeldverhouding',
     'model_provider' => 'via :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Klaar',
     'status_failed' => 'Mislukt',
     'status_cancelled' => 'Geannuleerd',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'In wachtrij',
+    'status_polling' => 'Wacht',
+    'status_skipped' => 'Overgeslagen',
 
     'approve' => 'Goedkeuren en uitvoeren',
     'cancel_job' => 'Annuleren',
@@ -62,6 +72,9 @@ return [
     'progress' => ':done van :total klaar',
     'failed_count' => ':n mislukt',
     'reply_placeholder' => 'Antwoord…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'U',
+    'turn_assistant' => 'Assistent',
 
     // Steps
     'step_generate' => 'Genereren',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'Er is geen API-sleutel ingesteld voor u of voor deze site.',
     'error_empty_instruction' => 'Zeg wat er moet gebeuren.',
     'error_unknown_model' => 'De gateway biedt geen :kind-model met de naam ":model".',
+    'error_model_cannot_continue' => '":model" kan het ":step"-werk dat hier al in de wachtrij staat niet uitvoeren.',
     'error_folder_denied' => 'U mag niet schrijven naar ":folder".',
-    'error_job_not_found' => 'Die batch bestaat niet, of is niet van u.',
-    'error_job_finished' => 'Die batch is al afgerond.',
-    'error_not_awaiting_approval' => 'Die batch wacht niet op goedkeuring.',
+    'error_job_not_found' => 'Die taak bestaat niet, of is niet van u.',
+    'error_job_finished' => 'Die taak is al afgerond.',
+    'error_not_awaiting_approval' => 'Die taak wacht niet op goedkeuring.',
     'error_key_from_config' => 'De sitesleutel staat in de configuratie en kan hier niet worden gewijzigd.',
     'error_key_rejected' => 'De gateway heeft die sleutel geweigerd.',
     'error_no_audio' => 'Er is geen audio ontvangen.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'Er kon niets uit die opname worden getranscribeerd.',
     'error_empty_text' => 'Er is niets om voor te lezen.',
     'error_speech_disabled' => 'Antwoorden hardop voorlezen is niet geconfigureerd.',
+    'error_voice_disabled' => 'Spraakinvoer en voorlezen zijn uitgeschakeld voor deze site.',
+
+    // The file browser.
+    'files_browse' => 'Bladeren…',
+    'files_title' => 'Bestanden',
+    'files_up' => 'Omhoog',
+    'files_use_folder' => 'Resultaten hierheen',
+    'files_here' => 'Resultaten komen hier',
+    'files_empty' => 'Er staat niets in deze map.',
+    'files_resolution' => 'Resolutie',
+    'files_bytes' => 'Grootte',
+    'files_modified' => 'Gewijzigd',
+    'files_url' => 'URL',
+    'files_copy' => 'Kopiëren',
+    'files_copied' => 'Gekopieerd',
+    'files_unknown' => 'Onbekend',
+    'files_not_writable' => 'Hier kunnen geen resultaten worden weggeschreven.',
+    'files_close' => 'Sluiten',
+    'files_locate' => 'Toon waar dit bestand staat',
+    'error_file_not_found' => 'Die afbeelding bestaat niet, of u mag haar niet zien.',
 ];

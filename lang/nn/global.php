@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Skildre ein bunke biletarbeid; det blir køyrt i bakgrunnen.',
+    'tagline' => 'Skildre biletarbeidet du treng; det blir køyrt i bakgrunnen.',
     'denied' => 'Du har ikkje løyve til å bruke AIMage.',
 
-    'new_job' => 'Ny bunke',
-    'jobs' => 'Bunkar',
+    'new_job' => 'Ny oppgåve',
+    'jobs' => 'Oppgåver',
     'no_jobs' => 'Ingenting enno. Skildre kva du vil ha gjort.',
     'instruction_placeholder' => 't.d. skalér opp alle bilete i products/, eller generer 10 bilete av eit fjellvatn i grålysinga',
     'send' => 'Send',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Biletmodell',
     'voice_model' => 'Dikteringsmodell',
     'output_folder' => 'Resultatmappe',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Storleik',
+    'control_quality' => 'Kvalitet',
+    'control_background' => 'Bakgrunn',
+    'control_aspect_ratio' => 'Sideforhold',
     'model_provider' => 'via :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Ferdig',
     'status_failed' => 'Mislykkast',
     'status_cancelled' => 'Avbrote',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'I kø',
+    'status_polling' => 'Ventar',
+    'status_skipped' => 'Hoppa over',
 
     'approve' => 'Godkjenn og køyr',
     'cancel_job' => 'Avbryt',
@@ -62,6 +72,9 @@ return [
     'progress' => ':done av :total ferdige',
     'failed_count' => ':n mislykkast',
     'reply_placeholder' => 'Svar…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'Du',
+    'turn_assistant' => 'Assistent',
 
     // Steps
     'step_generate' => 'Generer',
@@ -87,7 +100,7 @@ return [
     'key_cleared' => 'Nøkkelen er fjerna.',
 
     // Batching health
-    'batching_unavailable' => 'Bakgrunnskøyring er utilgjengeleg, så arbeidet startar ikkje av seg sjølv.',
+    'batching_unavailable' => 'Bakgrunnshandsaming er utilgjengeleg, så arbeidet startar ikkje av seg sjølv.',
     'batching_not_registered' => 'AIMage-oppgåvetypen er ikkje registrert i denne Evolution CMS-installasjonen.',
     'batching_scheduler_down' => 'Planleggjaren køyrer ikkje. Start han med «php core/artisan schedule:work», eller '
         . 'la cron kalle «schedule:run» kvart minutt.',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'Ingen API-nøkkel er sett opp for deg eller for denne nettstaden.',
     'error_empty_instruction' => 'Sei kva du vil ha gjort.',
     'error_unknown_model' => 'Gatewayen tilbyr ingen :kind-modell som heiter «:model».',
+    'error_model_cannot_continue' => '«:model» kan ikkje utføre «:step»-arbeidet som alt står i kø her.',
     'error_folder_denied' => 'Du kan ikkje skrive til «:folder».',
-    'error_job_not_found' => 'Den bunken finst ikkje, eller er ikkje din.',
-    'error_job_finished' => 'Den bunken er alt ferdig.',
-    'error_not_awaiting_approval' => 'Den bunken ventar ikkje på godkjenning.',
+    'error_job_not_found' => 'Den oppgåva finst ikkje, eller ho er ikkje di.',
+    'error_job_finished' => 'Den oppgåva er alt ferdig.',
+    'error_not_awaiting_approval' => 'Den oppgåva ventar ikkje på godkjenning.',
     'error_key_from_config' => 'Nøkkelen til nettstaden er sett i konfigurasjonen og kan ikkje endrast her.',
     'error_key_rejected' => 'Gatewayen avviste den nøkkelen.',
     'error_no_audio' => 'Ingen lyd vart motteken.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'Ingenting kunne transkriberast frå det opptaket.',
     'error_empty_text' => 'Det er ingenting å lese opp.',
     'error_speech_disabled' => 'Opplesing av svar er ikkje sett opp.',
+    'error_voice_disabled' => 'Taleinnskriving og opplesing er slått av for denne nettstaden.',
+
+    // The file browser.
+    'files_browse' => 'Bla gjennom…',
+    'files_title' => 'Filer',
+    'files_up' => 'Opp',
+    'files_use_folder' => 'Legg resultata her',
+    'files_here' => 'Resultata hamnar her',
+    'files_empty' => 'Det er ingenting i denne mappa.',
+    'files_resolution' => 'Oppløysing',
+    'files_bytes' => 'Storleik',
+    'files_modified' => 'Endra',
+    'files_url' => 'URL',
+    'files_copy' => 'Kopier',
+    'files_copied' => 'Kopiert',
+    'files_unknown' => 'Ukjend',
+    'files_not_writable' => 'Resultat kan ikkje skrivast her.',
+    'files_close' => 'Lukk',
+    'files_locate' => 'Vis kvar fila ligg',
+    'error_file_not_found' => 'Det biletet finst ikkje, eller du får ikkje sjå det.',
 ];

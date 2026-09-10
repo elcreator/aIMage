@@ -32,9 +32,20 @@ class PageController extends Controller
             // JavaScript spells out a module path, because the prefix moves if
             // the module is ever renamed.
             'baseUrl' => rtrim($request->getBaseUrl() . $request->getPathInfo(), '/'),
+
+            // The module renders as its own document inside the manager frame,
+            // so it inherits none of the manager's stylesheets. This is what
+            // lets it use the icon set the rest of the manager uses instead of
+            // shipping a second one — or falling back to emoji, which are the
+            // font the operating system happens to have.
+            'iconsUrl' => $this->managerAsset('style/common/font-awesome/css/font-awesome.min.css'),
             'csrfToken' => csrf_token(),
             'keyState' => $this->keyState(),
             'canManageSiteKey' => $this->canManageSiteKey(),
+            // Optional parts of the workbench. The template omits their
+            // controls entirely rather than hiding them, so nothing is
+            // bound to an element that is not there.
+            'features' => ['voice' => Config::feature('voice')],
             'defaults' => [
                 'text_model' => Config::defaultModel('text'),
                 'image_model' => Config::defaultModel('image'),
@@ -55,6 +66,26 @@ class PageController extends Controller
             // never starts because nothing calls schedule:run.
             'batching' => $this->batchingState(),
         ]);
+    }
+
+    /**
+     * A URL for a file under `manager/media/`.
+     *
+     * `EVO_MANAGER_URL` is what the CMS defines for this and is correct under a
+     * request. It is derived from the working directory when nothing is
+     * serving, though — a CLI probe reports a URL for wherever php was run —
+     * so a site root that does not look like one is rebuilt from `MGR_DIR`
+     * instead of trusted.
+     */
+    private function managerAsset(string $path): string
+    {
+        $base = defined('EVO_MANAGER_URL') ? (string) EVO_MANAGER_URL : '';
+
+        if ($base === '' || !preg_match('#^(?:https?:)?//|^/#', $base)) {
+            $base = '/' . (defined('MGR_DIR') ? trim((string) MGR_DIR, '/') : 'manager') . '/';
+        }
+
+        return rtrim($base, '/') . '/media/' . ltrim($path, '/');
     }
 
     /**

@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'תארו אצווה של עבודה על תמונות; היא מתבצעת ברקע.',
+    'tagline' => 'תארו את עבודת התמונות הדרושה; היא רצה ברקע.',
     'denied' => 'אין לך הרשאה להשתמש ב-AIMage.',
 
-    'new_job' => 'אצווה חדשה',
-    'jobs' => 'אצוות',
+    'new_job' => 'משימה חדשה',
+    'jobs' => 'משימות',
     'no_jobs' => 'עדיין אין כלום. תארו מה ברצונכם שייעשה.',
     'instruction_placeholder' => 'למשל: להגדיל את כל התמונות ב-products/, או ליצור 10 תמונות של אגם הררי עם שחר',
     'send' => 'שליחה',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'מודל תמונה',
     'voice_model' => 'מודל הכתבה',
     'output_folder' => 'תיקיית תוצאות',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'גודל',
+    'control_quality' => 'איכות',
+    'control_background' => 'רקע',
+    'control_aspect_ratio' => 'יחס רוחב-גובה',
     'model_provider' => 'דרך :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'הושלם',
     'status_failed' => 'נכשל',
     'status_cancelled' => 'בוטל',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'בתור',
+    'status_polling' => 'ממתין',
+    'status_skipped' => 'דולג',
 
     'approve' => 'אישור והרצה',
     'cancel_job' => 'ביטול',
@@ -62,6 +72,9 @@ return [
     'progress' => 'הושלמו :done מתוך :total',
     'failed_count' => ':n נכשלו',
     'reply_placeholder' => 'תשובה…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'את/ה',
+    'turn_assistant' => 'עוזר',
 
     // Steps
     'step_generate' => 'יצירה',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'לא הוגדר מפתח API עבורך ולא עבור אתר זה.',
     'error_empty_instruction' => 'כתבו מה ברצונכם שייעשה.',
     'error_unknown_model' => 'השער אינו מציע מודל :kind בשם ":model".',
+    'error_model_cannot_continue' => '":model" אינו יכול לבצע את עבודת ":step" שכבר בתור כאן.',
     'error_folder_denied' => 'אין לך הרשאת כתיבה אל ":folder".',
-    'error_job_not_found' => 'אצווה זו אינה קיימת, או שאינה שלך.',
-    'error_job_finished' => 'אצווה זו כבר הסתיימה.',
-    'error_not_awaiting_approval' => 'אצווה זו אינה ממתינה לאישור.',
+    'error_job_not_found' => 'המשימה אינה קיימת, או שאינה שלך.',
+    'error_job_finished' => 'משימה זו כבר הסתיימה.',
+    'error_not_awaiting_approval' => 'משימה זו אינה ממתינה לאישור.',
     'error_key_from_config' => 'מפתח האתר מוגדר בקובץ התצורה ולא ניתן לשנותו כאן.',
     'error_key_rejected' => 'השער דחה את המפתח הזה.',
     'error_no_audio' => 'לא התקבל אודיו.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'לא ניתן היה לתמלל דבר מהקלטה זו.',
     'error_empty_text' => 'אין מה להקריא.',
     'error_speech_disabled' => 'הקראת תשובות בקול אינה מוגדרת.',
+    'error_voice_disabled' => 'קלט קולי והקראה מושבתים באתר הזה.',
+
+    // The file browser.
+    'files_browse' => 'עיון…',
+    'files_title' => 'קבצים',
+    'files_up' => 'למעלה',
+    'files_use_folder' => 'לשמור תוצאות כאן',
+    'files_here' => 'התוצאות מגיעות לכאן',
+    'files_empty' => 'אין כלום בתיקייה הזו.',
+    'files_resolution' => 'רזולוציה',
+    'files_bytes' => 'גודל',
+    'files_modified' => 'שונה',
+    'files_url' => 'כתובת',
+    'files_copy' => 'העתק',
+    'files_copied' => 'הועתק',
+    'files_unknown' => 'לא ידוע',
+    'files_not_writable' => 'לא ניתן לכתוב תוצאות כאן.',
+    'files_close' => 'סגור',
+    'files_locate' => 'הצגת מיקום הקובץ',
+    'error_file_not_found' => 'התמונה אינה קיימת, או שאינך רשאי לראות אותה.',
 ];

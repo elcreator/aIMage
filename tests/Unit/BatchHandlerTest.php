@@ -1,8 +1,10 @@
 <?php
 
+use Elcreator\aIMage\Agent\Tools;
 use Elcreator\aIMage\Console\BatchHandler;
 use Elcreator\aIMage\Models\Job;
 use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Models\Message;
 use Elcreator\aIMage\Support\ApiKeys;
 use Elcreator\aIMage\Support\JobQueue;
 use EvolutionCMS\Models\SystemCliTask;
@@ -79,6 +81,40 @@ test('a task already in flight blocks a second one', function () {
     expect(SystemCliTask::query()->where('target', $job->uuid)->count())->toBe(1);
 });
 
+test('a slice queues its successor even though it is itself in flight', function () {
+    aimageUser(7, 1);
+    aimageSetFileRoot('assets');
+    $job = aimageJob(['user_id' => 7, 'status' => Job::STATUS_RUNNING]);
+
+    $current = JobQueue::enqueue($job);
+    $current->forceFill(['status' => 'running'])->save();
+
+    // What a handler does at the end of a slice. Counting itself as the
+    // pending successor is how a batch stops after one slice and never
+    // resumes, so the caller's own task is excluded from the guard.
+    $next = JobQueue::enqueue($job, (int) $current->getKey());
+
+    expect($next)->not->toBeNull()
+        ->and($next->getKey())->not->toBe($current->getKey())
+        ->and($next->status)->toBe('queued')
+        ->and(SystemCliTask::query()->where('target', $job->uuid)->count())->toBe(2);
+});
+
+test('the exclusion covers only the caller, not a genuine successor', function () {
+    aimageUser(7, 1);
+    aimageSetFileRoot('assets');
+    $job = aimageJob(['user_id' => 7, 'status' => Job::STATUS_RUNNING]);
+
+    $current = JobQueue::enqueue($job);
+    $current->forceFill(['status' => 'running'])->save();
+    $next = JobQueue::enqueue($job, (int) $current->getKey());
+
+    // Called twice in one slice — a retry, or the UI approving while the
+    // worker is mid-pass. The successor already queued must be reused.
+    expect(JobQueue::enqueue($job, (int) $current->getKey())->getKey())->toBe($next->getKey())
+        ->and(SystemCliTask::query()->where('target', $job->uuid)->count())->toBe(2);
+});
+
 test('cancelling stops the job and its queued task', function () {
     aimageUser(7, 1);
     aimageSetFileRoot('assets');
@@ -121,6 +157,13 @@ function aimageSlice(Job $job, array $gatewayResponses = [], array $downloads = 
         ?? JobQueue::enqueue($job)
         ?? SystemCliTask::query()->where('target', $job->uuid)->orderByDesc('id')->firstOrFail();
 
+    // The worker claims a task before handing it to a handler, and the handler
+    // has to queue its successor around that fact. A slice run against a still
+    // `queued` row would be testing a state that never occurs.
+    if ($task->status === 'queued') {
+        $task->forceFill(['status' => 'running'])->save();
+    }
+
     $handler = new class($gatewayResponses, $downloads) extends BatchHandler {
         public function __construct(private array $gateway, private array $downloads)
         {
@@ -141,6 +184,88 @@ function aimageSlice(Job $job, array $gatewayResponses = [], array $downloads = 
 
     return $handler->execute($task);
 }
+
+/** One planner turn that queues a generation and declares itself finished. */
+function aimagePlanReply(string $summary = 'One image of a lake.'): \GuzzleHttp\Psr7\Response
+{
+    return aimageJsonResponse([
+        'content' => [
+            [
+                'type' => 'tool_use',
+                'id' => 'call-plan',
+                'name' => Tools::PLAN_GENERATE,
+                'input' => ['prompt' => 'a lake at dawn', 'count' => 1],
+            ],
+            [
+                'type' => 'tool_use',
+                'id' => 'call-finish',
+                'name' => Tools::FINISH,
+                'input' => ['summary' => $summary],
+            ],
+        ],
+        'stop_reason' => 'tool_use',
+    ]);
+}
+
+test('a plan cheap enough to run unattended is written down as running', function () {
+    aimageUser(7, 1);
+    aimageSetFileRoot('assets');
+
+    // flux1-schnell is a flat €0.001816 an image in the fixture, far under the
+    // €5 threshold, so nobody is asked to sign for it.
+    $job = aimageJob(['user_id' => 7, 'image_model' => 'flux1-schnell']);
+    Message::record((int) $job->getKey(), Message::ROLE_USER, ['text' => 'Generate one image of a lake']);
+
+    aimageSlice($job, [
+        new \GuzzleHttp\Psr7\Response(200, [], aimageModelsJson()),
+        aimagePlanReply(),
+    ]);
+
+    // The transition has to reach the database. Returning it and leaving the
+    // row `planning` means every later slice replans — paying for a turn each
+    // time — while the step just queued never runs.
+    expect($job->fresh()->status)->toBe(Job::STATUS_RUNNING)
+        ->and($job->fresh()->approved_at)->not->toBeNull()
+        ->and(JobStep::query()->where('job_id', $job->getKey())->count())->toBe(1)
+        // And it leaves a successor behind, or nothing would execute that step.
+        ->and(SystemCliTask::query()->where('target', $job->uuid)->where('status', 'queued')->count())->toBe(1);
+});
+
+test('an expensive plan still stops for a signature', function () {
+    aimageUser(7, 1);
+    aimageSetFileRoot('assets');
+
+    // gpt-image-1 is €0.226679 an image, so thirty of them clear the threshold.
+    $job = aimageJob(['user_id' => 7, 'image_model' => 'gpt-image-1']);
+    Message::record((int) $job->getKey(), Message::ROLE_USER, ['text' => 'Generate thirty images of a lake']);
+
+    aimageSlice($job, [
+        new \GuzzleHttp\Psr7\Response(200, [], aimageModelsJson()),
+        aimageJsonResponse([
+            'content' => [
+                [
+                    'type' => 'tool_use',
+                    'id' => 'call-plan',
+                    'name' => Tools::PLAN_GENERATE,
+                    'input' => ['prompt' => 'a lake at dawn', 'count' => 30],
+                ],
+                [
+                    'type' => 'tool_use',
+                    'id' => 'call-finish',
+                    'name' => Tools::FINISH,
+                    'input' => ['summary' => 'Thirty images of a lake.'],
+                ],
+            ],
+            'stop_reason' => 'tool_use',
+        ]),
+    ]);
+
+    expect($job->fresh()->status)->toBe(Job::STATUS_AWAITING_APPROVAL)
+        ->and($job->fresh()->approved_at)->toBeNull()
+        // Waiting on a person, so no successor: re-queueing would burn turns
+        // re-asking a question nobody has answered.
+        ->and(SystemCliTask::query()->where('target', $job->uuid)->where('status', 'queued')->count())->toBe(0);
+});
 
 test('a slice with no API key fails the job with a reason', function () {
     aimageUser(7, 1);
@@ -339,4 +464,34 @@ test('progress is reported back to the worker', function () {
 
     expect($reports)->not->toBeEmpty()
         ->and(array_column($reports, 'step'))->toContain('finished');
+});
+
+test('a planner that spends its first turn looking does not have the job failed under it', function () {
+    aimageUser(7, 1);
+    aimageSetFileRoot('assets');
+    aimagePutImage('images/a.png');
+
+    $job = aimageJob(['user_id' => 7, 'image_model' => 'flux1-schnell']);
+    Message::record((int) $job->getKey(), Message::ROLE_USER, ['text' => 'Upscale the existing images']);
+
+    // The prompt tells it to look before it plans, so a bare list_images turn
+    // is correct behaviour, not an empty plan. Counting steps at this moment
+    // would fail every edit and upscale — neither can be planned without
+    // listing first.
+    aimageSlice($job, [
+        new \GuzzleHttp\Psr7\Response(200, [], aimageModelsJson()),
+        aimageJsonResponse([
+            'content' => [[
+                'type' => 'tool_use',
+                'id' => 'call-list',
+                'name' => Tools::LIST_IMAGES,
+                'input' => ['folder' => 'images'],
+            ]],
+            'stop_reason' => 'tool_use',
+        ]),
+    ]);
+
+    expect($job->fresh()->status)->toBe(Job::STATUS_PLANNING)
+        ->and($job->fresh()->error_code)->toBe('')
+        ->and(SystemCliTask::query()->where('target', $job->uuid)->where('status', 'queued')->count())->toBe(1);
 });

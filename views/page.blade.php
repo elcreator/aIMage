@@ -16,6 +16,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ __('aIMage::global.title') }}</title>
+    {{-- The manager's own icon set. This page is a document of its own
+         inside the frame, so nothing the manager loads reaches it. --}}
+    <link rel="stylesheet" href="{{ $iconsUrl }}">
     @include('aIMage::partials.styles')
 </head>
 <body>
@@ -116,9 +119,17 @@
                         <em class="ai-estimate" id="ai-text-estimate"></em>
                     </label>
 
+                    {{-- The results folder is a path, not a list: a manager may
+                         name a folder that does not exist yet, and the ones that
+                         do are better browsed than enumerated into a dropdown. --}}
                     <label class="ai-field ai-field-narrow">
                         <span>{{ __('aIMage::global.output_folder') }}</span>
-                        <select id="ai-folder"></select>
+                        <span class="ai-folder-row">
+                            <input type="text" id="ai-folder" spellcheck="false" autocomplete="off">
+                            <button type="button" class="ai-btn ai-btn-small" id="ai-browse">
+                                {{ __('aIMage::global.files_browse') }}
+                            </button>
+                        </span>
                     </label>
                 </div>
 
@@ -135,12 +146,32 @@
                         <button type="button" class="ai-btn ai-btn-primary" id="ai-send">
                             {{ __('aIMage::global.send') }}
                         </button>
-                        <button type="button" class="ai-btn ai-btn-mic" id="ai-mic"
-                                title="{{ __('aIMage::global.record') }}">🎙</button>
-                        <label class="ai-toggle">
-                            <input type="checkbox" id="ai-speak">
-                            <span>{{ __('aIMage::global.speak_answer') }}</span>
-                        </label>
+                        {{-- Voice is optional and off by default. The buttons
+                             are not rendered at all when it is off, and the
+                             endpoints behind them refuse too — see
+                             `features.voice` in config/aIMage.php.
+
+                             The two share a line of their own under Send, and
+                             split its width between them so the block stays
+                             square whatever the translated label is. --}}
+                        @if ($features['voice'])
+                        <div class="ai-compose-icons">
+                            <button type="button" class="ai-btn ai-btn-icon ai-btn-mic" id="ai-mic"
+                                    title="{{ __('aIMage::global.record') }}"
+                                    aria-label="{{ __('aIMage::global.record') }}">
+                                <i class="fa fa-microphone" aria-hidden="true"></i>
+                            </button>
+                            {{-- A pressed button rather than a checkbox: it fits
+                                 the row, and `aria-pressed` says what a
+                                 checkbox's label used to. --}}
+                            <button type="button" class="ai-btn ai-btn-icon ai-btn-toggle" id="ai-speak"
+                                    aria-pressed="false"
+                                    title="{{ __('aIMage::global.speak_answer') }}"
+                                    aria-label="{{ __('aIMage::global.speak_answer') }}">
+                                <i class="fa fa-volume-off" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        @endif
                     </div>
                 </div>
                 <p class="ai-msg" id="ai-compose-msg" role="status"></p>
@@ -170,12 +201,17 @@
                 {{-- Answering a clarifying question. The planner parks the job
                      in awaiting_input and this is how it gets going again. --}}
                 <div class="ai-reply" id="ai-reply" hidden>
-                    <input type="text" id="ai-reply-input"
-                           placeholder="{{ __('aIMage::global.reply_placeholder') }}">
+                    <textarea id="ai-reply-input" rows="2"
+                              placeholder="{{ __('aIMage::global.reply_placeholder') }}"></textarea>
                     <button type="button" class="ai-btn ai-btn-primary" id="ai-reply-send">
                         {{ __('aIMage::global.send') }}
                     </button>
-                    <button type="button" class="ai-btn ai-btn-mic" id="ai-reply-mic">🎙</button>
+                    @if ($features['voice'])
+                    <button type="button" class="ai-btn ai-btn-icon ai-btn-mic" id="ai-reply-mic"
+                            title="{{ __('aIMage::global.record') }}" aria-label="{{ __('aIMage::global.record') }}">
+                        <i class="fa fa-microphone" aria-hidden="true"></i>
+                    </button>
+                    @endif
                 </div>
 
                 <div class="ai-steps" id="ai-steps"></div>
@@ -195,6 +231,7 @@
         'scope' => $scope,
         'batching' => $batching,
         'canManageSiteKey' => $canManageSiteKey,
+        'features' => $features,
         'lang' => [
             'est_cost' => __('aIMage::global.est_cost'),
             'est_time' => __('aIMage::global.est_time'),
@@ -220,6 +257,13 @@
             'status_succeeded' => __('aIMage::global.status_succeeded'),
             'status_failed' => __('aIMage::global.status_failed'),
             'status_cancelled' => __('aIMage::global.status_cancelled'),
+            'status_queued' => __('aIMage::global.status_queued'),
+            'status_polling' => __('aIMage::global.status_polling'),
+            'status_skipped' => __('aIMage::global.status_skipped'),
+            'control_size' => __('aIMage::global.control_size'),
+            'control_quality' => __('aIMage::global.control_quality'),
+            'control_background' => __('aIMage::global.control_background'),
+            'control_aspect_ratio' => __('aIMage::global.control_aspect_ratio'),
             'approve' => __('aIMage::global.approve'),
             'progress' => __('aIMage::global.progress'),
             'failed_count' => __('aIMage::global.failed_count'),
@@ -239,9 +283,56 @@
             'step_upscale' => __('aIMage::global.step_upscale'),
             'step_describe' => __('aIMage::global.step_describe'),
             'model_provider' => __('aIMage::global.model_provider'),
+            'files_title' => __('aIMage::global.files_title'),
+            'files_up' => __('aIMage::global.files_up'),
+            'files_use_folder' => __('aIMage::global.files_use_folder'),
+            'files_here' => __('aIMage::global.files_here'),
+            'files_empty' => __('aIMage::global.files_empty'),
+            'files_resolution' => __('aIMage::global.files_resolution'),
+            'files_bytes' => __('aIMage::global.files_bytes'),
+            'files_modified' => __('aIMage::global.files_modified'),
+            'files_url' => __('aIMage::global.files_url'),
+            'files_copy' => __('aIMage::global.files_copy'),
+            'files_copied' => __('aIMage::global.files_copied'),
+            'files_unknown' => __('aIMage::global.files_unknown'),
+            'files_not_writable' => __('aIMage::global.files_not_writable'),
+            'files_locate' => __('aIMage::global.files_locate'),
+            'turn_user' => __('aIMage::global.turn_user'),
+            'turn_assistant' => __('aIMage::global.turn_assistant'),
         ],
     ]);
 </script>
+{{-- The file browser. A dialog rather than a panel: it is opened to answer one
+     question — which folder, or what is that image — and the page behind it is
+     the thing being answered for. --}}
+<div class="ai-modal" id="ai-files" hidden>
+    <div class="ai-modal-box" role="dialog" aria-modal="true" aria-labelledby="ai-files-title">
+        <div class="ai-modal-head">
+            <h2 id="ai-files-title">{{ __('aIMage::global.files_title') }}</h2>
+            <button type="button" class="ai-btn ai-btn-small" id="ai-files-close">
+                {{ __('aIMage::global.files_close') }}
+            </button>
+        </div>
+
+        <div class="ai-files-bar">
+            <button type="button" class="ai-btn ai-btn-small" id="ai-files-up">
+                <i class="fa fa-arrow-up" aria-hidden="true"></i> {{ __('aIMage::global.files_up') }}
+            </button>
+            <nav class="ai-crumbs" id="ai-files-crumbs"></nav>
+            <button type="button" class="ai-btn ai-btn-primary ai-btn-small" id="ai-files-use">
+                {{ __('aIMage::global.files_use_folder') }}
+            </button>
+        </div>
+
+        <div class="ai-files-body">
+            <div class="ai-files-list" id="ai-files-list"></div>
+            <aside class="ai-files-preview" id="ai-files-preview" hidden></aside>
+        </div>
+
+        <p class="ai-msg" id="ai-files-msg" role="status"></p>
+    </div>
+</div>
+
 @include('aIMage::partials.script')
 </body>
 </html>

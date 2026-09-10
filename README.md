@@ -72,6 +72,48 @@ session, so `Support\ImageScope` rebuilds the same facts from the database for a
 and then defers to the core's own `FileManagerAccess` for every verdict — it is not a second
 permission model.
 
+## Where results are written
+
+Every result lands under the **write root**, which is the narrower of two things:
+
+- the manager's own file-manager root (`filemanager_path`, else the site root), and
+- the image browser's root (`rb_base_dir`, `assets/` by default) — what the *Insert image*
+  dialog can actually see.
+
+So a manager confined to `assets/clients/acme` gets their results there, not in the site-wide
+folder they cannot open; and an unconfined manager, whose file root is the whole site, cannot
+have images written to `core/` or `manager/` where nothing could use them.
+
+Inside that ceiling, the **base** is `assets/images` — Evolution's own images directory, the one
+the installer refuses to finish without. That is where results go by default and what the folder
+picker lists, so nobody is offered `core`, `views` or `assets/plugins` as a place to put a
+picture. Naming a real folder elsewhere under the ceiling still works: ask for `assets/products`
+and you get `assets/products`. The CMS's own directories — `assets/plugins`, `assets/cache`,
+`assets/modules`, `assets/backup`, `import`, `export`, `templates`, `snippets`, the manager
+directory — are refused outright, whatever the manager's permissions say.
+
+The results folder is a path you can type and a tree you can browse. **Browse…** opens a file
+browser over the same scoped listing everything else uses: folders, image thumbnails, click an
+image for its URL, resolution, size and date. It climbs to the ceiling and stops — so
+`assets/products`, a sibling of the base, is one step up rather than unreachable — and it never
+shows the CMS's own directories.
+
+Clicking a result in a task opens the same browser where that file landed, with it selected and
+its metadata showing. That view has no *Put results here* button: looking for a file must not
+quietly re-point a task's output at whatever folder you stopped in. Everything else — navigating,
+the preview, Close — behaves identically.
+
+It is deliberately *not* the manager's KCFinder browser. KCFinder is rooted at `rb_base_dir`
+alone and ignores `filemanager_path`, so it shows a manager confined to `assets/clients/456` the
+whole `assets/` tree — everyone's files. Reusing it here would undo the confinement this package
+exists to respect.
+
+A destination folder need not exist. "Put them in `123/45`" means a folder `45` inside a folder
+`123`, both created under the base when the first result is written — the same for edits,
+variations and upscales. A name that is not a path under the ceiling is placed under the base
+rather than refused; one that tries to climb out with `..` is refused outright, not quietly
+rewritten.
+
 ## Configuration
 
 `config/aIMage.php`, overridable from `core/custom/config/cms/settings.php`. The values worth
@@ -83,10 +125,17 @@ knowing:
 | `limits.parallelism` | `3` | Batches in flight at once, across all managers |
 | `limits.max_images_per_job` | `200` | Hard ceiling, whatever the plan says |
 | `limits.approval_threshold_eur` | `5.0` | Above this, a plan waits for a signature |
-| `files.output_folder` | `aimage` | Where results land, relative to the file root |
+| `features.voice` | `false` | The microphone and read-aloud buttons. Off unless a site opts in |
+| `files.output_folder` | `aimage` | Where results land, under `assets/images` (see above) |
 | `files.allow_overwrite` | `false` | Off means results are written beside originals |
 
 Secrets belong in the environment, never in this file.
+
+**Voice is opt-in.** Dictation and reading answers back both send audio to the gateway and both
+cost money per use, so neither is inherited by installing the package. `AIMAGE_VOICE=1` in the
+environment turns them on, as does `features.voice` in the site's settings. Off, the buttons are
+not rendered and `/voice/transcribe` and `/voice/speak` refuse — a flag that only hides a button
+while its endpoint still answers is a decoration, not a switch.
 
 ## Design notes
 

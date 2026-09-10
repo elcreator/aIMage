@@ -21,6 +21,18 @@ final class Config
         return (bool) static::get('enable', true);
     }
 
+    /**
+     * Is an optional part of the workbench switched on?
+     *
+     * Read in two places for every feature — where its controls are rendered
+     * and where its endpoints answer — because a flag that only hides buttons
+     * is a decoration, not a switch.
+     */
+    public static function feature(string $name): bool
+    {
+        return (bool) static::get('features.' . $name, false);
+    }
+
     public static function baseUrl(): string
     {
         return rtrim((string) static::get('gateway.base_url', 'https://ai.artur.work/api/v1'), '/');

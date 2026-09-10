@@ -2,6 +2,7 @@
 
 namespace Elcreator\aIMage\Models;
 
+use Elcreator\aIMage\Agent\Tools;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -33,6 +34,7 @@ class Message extends Model
         'job_id',
         'seq',
         'role',
+        'internal',
         'text',
         'tool_calls_json',
         'tool_results_json',
@@ -43,6 +45,7 @@ class Message extends Model
     protected $casts = [
         'job_id' => 'integer',
         'seq' => 'integer',
+        'internal' => 'boolean',
         'tool_calls_json' => 'array',
         'tool_results_json' => 'array',
         'created_at' => 'datetime',
@@ -51,6 +54,72 @@ class Message extends Model
     public function job(): BelongsTo
     {
         return $this->belongsTo(Job::class, 'job_id');
+    }
+
+    /**
+     * Is this turn worth showing a person?
+     *
+     * The transcript and the conversation are not the same thing. The planner
+     * needs every row to replay correctly — tool calls and their results
+     * included — while the manager needs the turns that were addressed to
+     * them. Two kinds of row are machinery:
+     *
+     *  - `tool` rows, which are the plumbing of a tool-calling loop;
+     *  - `assistant` rows with no text, which is what a turn looks like when
+     *    the model queued work instead of saying something. Rendering those
+     *    gives a blank speech bubble per planning turn, which reads as the
+     *    assistant having replied with nothing. What it actually did is in the
+     *    step list.
+     */
+    public function isConversational(): bool
+    {
+        if ((string) $this->role === self::ROLE_TOOL || (bool) $this->internal) {
+            return false;
+        }
+
+        return (string) $this->role === self::ROLE_USER || trim((string) $this->text) !== '';
+    }
+
+    /**
+     * The text as a person should read it.
+     *
+     * Models sometimes write a tool call out as prose — `[ask_user(question=
+     * "...")]` on the end of a sentence — instead of emitting it through the
+     * tool-calling channel. The transcript keeps that verbatim, because the
+     * model has to see its own turn to correct it, but the manager has no use
+     * for our internal function names and should never be shown them.
+     *
+     * Only our own tool names are stripped, and only where they appear as a
+     * bracketed call. Anything else the model wrote is left exactly alone —
+     * a sanitiser that guesses is worse than the artefact it removes.
+     */
+    public function displayText(): string
+    {
+        return static::stripToolSyntax((string) $this->text);
+    }
+
+    /**
+     * Remove tool-call syntax a model wrote out as prose.
+     *
+     * Static because the same text reaches a manager by two routes — as a turn
+     * in the thread, and as the job's own message when the planner gives up on
+     * a model that will not use its tools — and both have to be clean.
+     */
+    public static function stripToolSyntax(string $text): string
+    {
+        $names = implode('|', array_map('preg_quote', [
+            Tools::LIST_IMAGES, Tools::LIST_FOLDERS,
+            Tools::PLAN_GENERATE, Tools::PLAN_EDIT, Tools::PLAN_VARIATE, Tools::PLAN_UPSCALE,
+            Tools::ASK_USER, Tools::FINISH,
+        ]));
+
+        // Bracketed and bare forms both appear in the wild: `[ask_user(...)]`
+        // and a bare `ask_user(...)` on its own.
+        $text = preg_replace('/\[\s*(?:' . $names . ')\s*\((?:[^\[\]]*)\)\s*\]/u', '', $text);
+        $text = preg_replace('/(?:' . $names . ')\s*\([^()]*\)/u', '', (string) $text);
+
+        // Collapse the trailing whitespace a removed call leaves behind.
+        return trim(preg_replace('/[ \\t]+(\\r?\\n)/u', '$1', (string) $text));
     }
 
     /**

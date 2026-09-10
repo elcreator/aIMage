@@ -28,6 +28,47 @@ use EvolutionCMS\Support\FileManagerAccess;
  */
 final class ImageScope
 {
+    /**
+     * Evolution's conventional images directory, under the image browser root.
+     *
+     * Not a setting — see `imageBase()`.
+     */
+    private const IMAGES_DIR = 'images';
+
+    /**
+     * Paths the CMS treats as its own, never as a place for content.
+     *
+     * The same list `manager/actions/files.dynamic.php` builds, minus the
+     * permission gates. The file manager asks "may this person edit plugins?";
+     * a results folder asks something narrower, and the answer is no for
+     * everybody — an AI-generated image belongs in `assets/cache` or
+     * `assets/plugins` under no permission at all.
+     *
+     * Relative to the site root, so they are compared after mapping through
+     * the manager's own file root.
+     */
+    private const SYSTEM_PATHS = [
+        'assets/backup',
+        'assets/cache',
+        'assets/export',
+        'assets/import',
+        'assets/modules',
+        'assets/plugins',
+        'assets/snippets',
+        'assets/templates',
+        // Shipped with the distribution rather than filled by anyone: they are
+        // not places a manager keeps pictures, and listing them as candidate
+        // destinations is the same noise as listing `core`.
+        'assets/captcha',
+        'assets/docs',
+        'assets/fonts',
+        'assets/js',
+        'temp',
+        'core',
+        'install',
+        'views',
+    ];
+
     /** The document groups this user belongs to. Empty for an unrestricted user. */
     private array $groupIds;
 
@@ -234,16 +275,33 @@ final class ImageScope
             return str_replace('\\', '/', $real);
         }
 
-        // The path does not exist yet — a result about to be written. Its
-        // nearest existing ancestor still has to be inside the root.
+        // The path does not exist yet — a result about to be written, or a
+        // folder about to be created. Its nearest existing ancestor still has
+        // to be inside the root, and finding it means climbing until something
+        // resolves: `123/45/x.png` under a manager who has neither folder yet
+        // has no existing parent at all, and stopping at `dirname()` would
+        // check nothing and let a symlinked `123` lead the write out of the
+        // tree.
         $parent = dirname($candidate);
-        $realParent = realpath($parent);
 
-        if ($realParent !== false && !$this->isInsideRoot($realParent)) {
-            return null;
+        while (true) {
+            $realParent = realpath($parent);
+
+            if ($realParent !== false) {
+                return $this->isInsideRoot($realParent) ? $candidate : null;
+            }
+
+            $next = dirname($parent);
+
+            // Climbed past the filesystem root without resolving anything.
+            // Not reachable from a path built on our own root, which exists,
+            // but a loop with no floor is worse than a redundant guard.
+            if ($next === $parent) {
+                return null;
+            }
+
+            $parent = $next;
         }
-
-        return $candidate;
     }
 
     /** The relative path of an absolute one, or null when it is outside the root. */
@@ -256,10 +314,21 @@ final class ImageScope
 
     private function isInsideRoot(string $realPath): bool
     {
-        $real = rtrim(str_replace('\\', '/', $realPath), '/');
-        $root = rtrim($this->root, '/');
+        return static::isInside($realPath, $this->root);
+    }
 
-        return $real === $root || str_starts_with($real, $root . '/');
+    /** Inside the ceiling results may be written under — never merely the file root. */
+    private function isInsideWriteRoot(string $path): bool
+    {
+        return static::isInside($path, $this->writeRoot());
+    }
+
+    private static function isInside(string $path, string $root): bool
+    {
+        $path = rtrim(str_replace('\\', '/', $path), '/');
+        $root = rtrim(str_replace('\\', '/', $root), '/');
+
+        return $root !== '' && ($path === $root || str_starts_with($path, $root . '/'));
     }
 
     /**
@@ -395,6 +464,15 @@ final class ImageScope
      */
     public function listFolders(string $relativeDir = ''): array
     {
+        // These are candidate destinations, so the listing starts where
+        // results go, not at the file-manager root. Rooted at the root, an
+        // unconfined manager is offered `core`, `manager` and `views` — the
+        // CMS's own directories, which are not somewhere anybody puts a
+        // generated image.
+        if (FileManagerAccess::normalizeRelativePath($relativeDir) === '') {
+            $relativeDir = $this->imageBase();
+        }
+
         $absolute = $this->absoluteOf($relativeDir);
 
         if ($absolute === null || !is_dir($absolute) || !$this->canRead($relativeDir)) {
@@ -423,7 +501,7 @@ final class ImageScope
         $folders = [];
 
         foreach ($candidates as $path) {
-            if (!$this->canRead($path)) {
+            if (!$this->canRead($path) || $this->isSystemPath($path)) {
                 continue;
             }
 
@@ -431,6 +509,52 @@ final class ImageScope
         }
 
         return $folders;
+    }
+
+    /**
+     * Is this one of the CMS's own directories?
+     *
+     * Resolved through the manager's file root rather than compared as a
+     * string, because the root moves: `plugins` means `assets/plugins` to an
+     * unconfined manager and something entirely innocent to one confined to
+     * `assets/clients/456`.
+     */
+    public function isSystemPath(?string $relative): bool
+    {
+        $absolute = $this->absoluteOf($relative);
+
+        if ($absolute === null) {
+            return true;
+        }
+
+        foreach (static::systemPaths() as $system) {
+            if (static::isInside($absolute, $system)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return string[] absolute, forward slashes, no trailing slash */
+    private static function systemPaths(): array
+    {
+        $base = defined('EVO_BASE_PATH') ? rtrim(str_replace('\\', '/', EVO_BASE_PATH), '/') : '';
+
+        if ($base === '') {
+            return [];
+        }
+
+        $paths = array_map(static fn (string $path): string => $base . '/' . $path, static::SYSTEM_PATHS);
+
+        // The manager directory is renameable, and a site that has renamed it
+        // for obscurity would otherwise find the new name listed as a folder
+        // results may be written to.
+        if (defined('EVO_MANAGER_PATH')) {
+            $paths[] = rtrim(str_replace('\\', '/', EVO_MANAGER_PATH), '/');
+        }
+
+        return $paths;
     }
 
     // ------------------------------------------------------------------
@@ -468,10 +592,266 @@ final class ImageScope
         return $intersection === [] ? $ours : $intersection;
     }
 
-    /** The folder results are written to, relative to the root. */
+    /** The folder results are written to by default, relative to the root. */
     public function outputFolder(): string
     {
-        return Config::outputFolder();
+        return $this->resolveWriteFolder(Config::outputFolder()) ?? '';
+    }
+
+    /**
+     * A destination folder for results, as a path relative to the file-manager
+     * root — or null when it cannot be made into one.
+     *
+     * Everything this job writes is confined to the **write root**, which is
+     * the narrower of two things: the manager's own file-manager root, and the
+     * image browser's root. A folder that is not already inside it is placed
+     * inside it rather than refused, so a manager who asks for "123/45" gets
+     * `123` and `45` created under the write root and the result written
+     * there, whether or not either folder existed a moment ago.
+     *
+     * Both halves of that ceiling matter and neither substitutes for the other:
+     *
+     *  - The **file-manager root** is the permission boundary. A manager
+     *    confined by `filemanager_path` is already below the browser's root,
+     *    so their write root is their own folder and results land there, never
+     *    in the site-wide images folder they cannot see.
+     *  - The **image browser root** (`rb_base_dir`, `assets/` by default) is
+     *    what the *Insert image* dialog can actually see. Without it, an
+     *    unconfined manager — whose file root is the whole site — could have
+     *    results written to `core/` or `manager/`, where nothing can use them.
+     *
+     * Traversal is still refused outright rather than clamped: `absoluteOf()`
+     * rejects `..` instead of normalising it, so a folder that tries to climb
+     * out is an error, not a silently rewritten path.
+     */
+    public function resolveWriteFolder(?string $folder): ?string
+    {
+        $folder = FileManagerAccess::normalizeRelativePath(str_replace('\\', '/', (string) $folder));
+        $ceiling = $this->writeRootRelative();
+        $base = $this->imageBase();
+
+        if ($folder === '') {
+            $folder = $base;
+        } elseif (!static::isUnder($folder, $ceiling)) {
+            // Not a path within the ceiling, so it is a name to create rather
+            // than a place that already means something: "123/45" from a
+            // manager becomes `<image base>/123/45`. A folder that *is* within
+            // the ceiling — `assets/products`, or anything the picker returned
+            // — is a real destination and is left exactly as given.
+            $folder = ($base === '' ? '' : $base . '/') . $folder;
+        }
+
+        if ($folder === '') {
+            return null;
+        }
+
+        // The final word on containment. Anything with a `..` segment, a NUL
+        // byte, or a symlinked ancestor pointing out of the tree dies here.
+        $absolute = $this->absoluteOf($folder);
+
+        if ($absolute === null || !$this->isInsideWriteRoot($absolute)) {
+            return null;
+        }
+
+        // A path within the ceiling is passed through untouched, which is what
+        // makes `assets/products` work — and would equally make
+        // `assets/plugins` work. The CMS's own directories are not somewhere a
+        // generated image goes, whatever the manager's permissions say.
+        return $this->isSystemPath($folder) ? null : $folder;
+    }
+
+    /** Is a relative path at or below a relative prefix? An empty prefix is the root, so everything is. */
+    private static function isUnder(string $path, string $prefix): bool
+    {
+        return $prefix === '' || $path === $prefix || str_starts_with($path, $prefix . '/');
+    }
+
+    /**
+     * The folder above this one, or null when it is the ceiling.
+     *
+     * Browsing stops at the write root rather than at the file-manager root.
+     * Above the ceiling there is nothing a result could be written to, so
+     * offering the climb would only produce folders that are refused on
+     * arrival.
+     */
+    public function parentFolder(?string $relative): ?string
+    {
+        $relative = FileManagerAccess::normalizeRelativePath($relative);
+        $ceiling = $this->writeRootRelative();
+
+        if ($relative === '' || $relative === $ceiling) {
+            return null;
+        }
+
+        $parent = str_contains($relative, '/') ? substr($relative, 0, strrpos($relative, '/')) : '';
+
+        return static::isUnder($parent, $ceiling) ? $parent : null;
+    }
+
+    /**
+     * Everything a preview needs about one image.
+     *
+     * Dimensions are read here rather than in `listImages()` because
+     * `getimagesize()` opens the file: once, for the image somebody clicked,
+     * is a different proposition from five hundred times for a folder nobody
+     * has looked at yet.
+     */
+    public function imageInfo(string $relative): ?array
+    {
+        $relative = FileManagerAccess::normalizeRelativePath($relative);
+
+        if (!$this->canRead($relative)) {
+            return null;
+        }
+
+        $absolute = $this->absoluteOf($relative);
+
+        if ($absolute === null || !is_file($absolute)) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($absolute, PATHINFO_EXTENSION));
+
+        if (!in_array($extension, $this->allowedExtensions(), true)) {
+            return null;
+        }
+
+        $size = @getimagesize($absolute) ?: [];
+
+        return [
+            'path' => $relative,
+            'name' => basename($relative),
+            'folder' => $this->parentOf($relative),
+            'url' => $this->publicUrl($relative),
+            'bytes' => (int) @filesize($absolute),
+            'modified' => (int) @filemtime($absolute),
+            // Null rather than 0 for anything GD cannot measure — an SVG, or a
+            // file whose extension lies about what it is. The panel says
+            // "unknown" instead of claiming a resolution of nothing.
+            'width' => isset($size[0]) ? (int) $size[0] : null,
+            'height' => isset($size[1]) ? (int) $size[1] : null,
+            'mime' => isset($size['mime']) ? (string) $size['mime'] : null,
+        ];
+    }
+
+    private function parentOf(string $relative): string
+    {
+        return str_contains($relative, '/') ? substr($relative, 0, strrpos($relative, '/')) : '';
+    }
+
+    /** Absolute path of the write root — the ceiling every result stays under. */
+    public function writeRoot(): string
+    {
+        $prefix = $this->writeRootRelative();
+
+        return $prefix === '' ? $this->root : $this->root . '/' . $prefix;
+    }
+
+    /**
+     * Where images live by default, relative to the file-manager root.
+     *
+     * The ceiling and the base are different questions. The ceiling is
+     * security — `assets/`, because that is what the *Insert image* dialog can
+     * see, and a manager who explicitly asks for `assets/products` should get
+     * it. The base is convention: Evolution's own images directory is
+     * `assets/images`. The installer refuses to finish without it, and
+     * `HelperProcessor` and `LegacyDeleteService` both special-case it, but it
+     * is a convention rather than a setting — there is no `rb_images_dir` to
+     * read — so it is checked for rather than assumed.
+     *
+     * Only the site-wide root gets the `images` suffix. A manager confined to
+     * `assets/clients/456` is already in their own image area; sending their
+     * results to `assets/clients/456/images` because a folder of that name
+     * happens to exist would be reading a coincidence as an instruction.
+     */
+    public function imageBase(): string
+    {
+        $writeRoot = $this->writeRoot();
+
+        if ($writeRoot !== static::resolveBrowserRoot()) {
+            return $this->writeRootRelative();
+        }
+
+        $candidate = $writeRoot . '/' . static::IMAGES_DIR;
+
+        if (!is_dir($candidate)) {
+            return $this->writeRootRelative();
+        }
+
+        return FileManagerAccess::getRelativePath($this->root, $candidate);
+    }
+
+    /**
+     * The write root as a path relative to this manager's file-manager root.
+     * `''` when the two coincide, which is every confined manager.
+     *
+     * The manager has two file roots and they routinely disagree. The Files
+     * page uses `filemanager_path`, falling back to the site root; KCFinder —
+     * the browser TinyMCE's *Insert image* dialog opens — uses `rb_base_dir`,
+     * which ships as `[(base_path)]assets/`. On a default install, where
+     * `filemanager_path` is empty, a result written to `<root>/aimage` is a
+     * real file the Files page lists and the dialog a manager actually inserts
+     * images from cannot see at all.
+     *
+     * Confining writes to the browser's root fixes that without moving the
+     * permission boundary, which stays the file-manager root exactly as
+     * `FileManagerAccess` expects: the prefix is a path *within* that root, so
+     * every write still passes the same checks as before, plus this one.
+     */
+    public function writeRootRelative(): string
+    {
+        $browserRoot = static::resolveBrowserRoot();
+
+        if ($browserRoot === '') {
+            return '';
+        }
+
+        // `getRelativePath()` answers '' both when the browser root is this
+        // root and when it lies outside it — a manager confined to a folder
+        // inside `assets/`, or two unrelated trees. Neither narrows anything:
+        // in the first case everything this manager can write is already
+        // inside the dialog's tree, and in the second nothing they could write
+        // would be, so the file-manager root is the only ceiling there is.
+        return FileManagerAccess::getRelativePath($this->root, $browserRoot);
+    }
+
+    /**
+     * The image browser's root, resolved the way KCFinder resolves it.
+     *
+     * Mirrors `manager/media/browser/mcpuk/config.php`: `rb_base_dir` is the
+     * default, `image_base_upload_dir` overrides it, and a relative override
+     * is taken as relative to the default rather than to the site root.
+     */
+    private static function resolveBrowserRoot(): string
+    {
+        $default = static::expandBasePath((string) evo()->getConfig('rb_base_dir', ''));
+        $custom = static::expandBasePath((string) evo()->getConfig('image_base_upload_dir', ''));
+
+        if ($custom === '') {
+            return $default;
+        }
+
+        if (!preg_match('#^(?:[A-Za-z]:/|/)#', $custom)) {
+            $custom = $default === '' ? '' : $default . '/' . ltrim($custom, '/');
+        }
+
+        return $custom;
+    }
+
+    /** A configured path with the CMS's own placeholder expanded, forward slashes, no trailing slash. */
+    private static function expandBasePath(string $path): string
+    {
+        $path = trim($path);
+
+        if ($path === '') {
+            return '';
+        }
+
+        if (defined('EVO_BASE_PATH')) {
+            $path = str_replace('[(base_path)]', EVO_BASE_PATH, $path);
+        }
+
+        return rtrim(str_replace('\\', '/', $path), '/');
     }
 
     /**
@@ -490,8 +870,17 @@ final class ImageScope
             return null;
         }
 
-        $relativeDir = FileManagerAccess::normalizeRelativePath($relativeDir);
-        $candidate = ($relativeDir === '' ? '' : $relativeDir . '/') . $basename . '.' . $extension;
+        // Anchored rather than trusted. The folder reaches here from a step
+        // queued during planning, which may predate the current write root —
+        // an upgraded site has jobs on its queue whose folder was resolved
+        // under the old rule, and they must land where the new one says.
+        $relativeDir = $this->resolveWriteFolder($relativeDir);
+
+        if ($relativeDir === null) {
+            return null;
+        }
+
+        $candidate = $relativeDir . '/' . $basename . '.' . $extension;
 
         if ($this->absoluteOf($candidate) === null) {
             return null;
@@ -503,7 +892,7 @@ final class ImageScope
 
         for ($suffix = 0; $suffix < 1000; $suffix++) {
             $name = $suffix === 0 ? $basename : $basename . '-' . $suffix;
-            $candidate = ($relativeDir === '' ? '' : $relativeDir . '/') . $name . '.' . $extension;
+            $candidate = $relativeDir . '/' . $name . '.' . $extension;
             $absolute = $this->absoluteOf($candidate);
 
             if ($absolute === null) {
@@ -562,9 +951,25 @@ final class ImageScope
             return false;
         }
 
+        // The last gate before bytes reach the disk, and the only one every
+        // future caller is guaranteed to pass through. A step queued under an
+        // older rule, or a folder that became a symlink between planning and
+        // execution, is refused here rather than written outside the ceiling.
+        if (!$this->isInsideWriteRoot($absolute)) {
+            return false;
+        }
+
         $directory = dirname($absolute);
 
         if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
+            return false;
+        }
+
+        // Re-checked now that the folder exists: `mkdir` resolves symlinks the
+        // containment check above could only reason about as strings.
+        $realDirectory = realpath($directory);
+
+        if ($realDirectory === false || !$this->isInsideWriteRoot($realDirectory)) {
             return false;
         }
 

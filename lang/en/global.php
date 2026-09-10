@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Describe a batch of image work; it runs in the background.',
+    'tagline' => 'Describe the image work you need; it runs in the background.',
     'denied' => 'You do not have permission to use AIMage.',
 
-    'new_job' => 'New batch',
-    'jobs' => 'Batches',
+    'new_job' => 'New task',
+    'jobs' => 'Tasks',
     'no_jobs' => 'Nothing yet. Describe what you want done.',
     'instruction_placeholder' => 'e.g. upscale every image in products/, or generate 10 hero images of a mountain lake at dawn',
     'send' => 'Send',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Image model',
     'voice_model' => 'Dictation model',
     'output_folder' => 'Results folder',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Size',
+    'control_quality' => 'Quality',
+    'control_background' => 'Background',
+    'control_aspect_ratio' => 'Aspect ratio',
     'model_provider' => 'via :provider',
 
     // The two numbers the picker exists to show.
@@ -58,6 +64,10 @@ return [
     'status_succeeded' => 'Done',
     'status_failed' => 'Failed',
     'status_cancelled' => 'Cancelled',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'Queued',
+    'status_polling' => 'Waiting',
+    'status_skipped' => 'Skipped',
 
     'approve' => 'Approve and run',
     'cancel_job' => 'Cancel',
@@ -65,6 +75,9 @@ return [
     'progress' => ':done of :total done',
     'failed_count' => ':n failed',
     'reply_placeholder' => 'Answer…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'You',
+    'turn_assistant' => 'Assistant',
 
     // Steps
     'step_generate' => 'Generate',
@@ -90,7 +103,7 @@ return [
     'key_cleared' => 'Key removed.',
 
     // Batching health
-    'batching_unavailable' => 'Background batching is unavailable, so work will not run on its own.',
+    'batching_unavailable' => 'Background processing is unavailable, so work will not run on its own.',
     'batching_not_registered' => 'The AIMage task type is not registered with this Evolution CMS installation.',
     'batching_scheduler_down' => 'The scheduler is not running. Start it with "php core/artisan schedule:work", or '
         . 'have cron call "schedule:run" every minute.',
@@ -100,10 +113,11 @@ return [
     'error_no_key' => 'No API key is configured for you or for this site.',
     'error_empty_instruction' => 'Say what you want done.',
     'error_unknown_model' => 'The gateway does not offer a :kind model called ":model".',
+    'error_model_cannot_continue' => '":model" cannot carry out the ":step" work already queued here.',
     'error_folder_denied' => 'You may not write to ":folder".',
-    'error_job_not_found' => 'That batch does not exist, or is not yours.',
-    'error_job_finished' => 'That batch has already finished.',
-    'error_not_awaiting_approval' => 'That batch is not waiting for approval.',
+    'error_job_not_found' => 'That task does not exist, or is not yours.',
+    'error_job_finished' => 'That task has already finished.',
+    'error_not_awaiting_approval' => 'That task is not waiting for approval.',
     'error_key_from_config' => 'The site key is set in configuration and cannot be changed here.',
     'error_key_rejected' => 'The gateway rejected that key.',
     'error_no_audio' => 'No audio was received.',
@@ -112,4 +126,24 @@ return [
     'error_empty_transcript' => 'Nothing could be transcribed from that recording.',
     'error_empty_text' => 'There is nothing to read aloud.',
     'error_speech_disabled' => 'Reading answers aloud is not configured.',
+    'error_voice_disabled' => 'Voice input and read-aloud are switched off for this site.',
+
+    // The file browser.
+    'files_browse' => 'Browse…',
+    'files_title' => 'Files',
+    'files_up' => 'Up',
+    'files_use_folder' => 'Put results here',
+    'files_here' => 'Results go here',
+    'files_empty' => 'Nothing in this folder.',
+    'files_resolution' => 'Resolution',
+    'files_bytes' => 'Size',
+    'files_modified' => 'Modified',
+    'files_url' => 'URL',
+    'files_copy' => 'Copy',
+    'files_copied' => 'Copied',
+    'files_unknown' => 'Unknown',
+    'files_not_writable' => 'Results cannot be written here.',
+    'files_close' => 'Close',
+    'files_locate' => 'Show where this file is',
+    'error_file_not_found' => 'That image does not exist, or you may not see it.',
 ];

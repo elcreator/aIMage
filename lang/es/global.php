@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Describe un lote de trabajo con imágenes; se ejecuta en segundo plano.',
+    'tagline' => 'Describa el trabajo con imágenes que necesita; se ejecuta en segundo plano.',
     'denied' => 'No tienes permiso para usar AIMage.',
 
-    'new_job' => 'Nuevo lote',
-    'jobs' => 'Lotes',
+    'new_job' => 'Nueva tarea',
+    'jobs' => 'Tareas',
     'no_jobs' => 'Nada todavía. Describe lo que quieres hacer.',
     'instruction_placeholder' => 'p. ej. ampliar todas las imágenes de products/, o generar 10 imágenes de un lago de montaña al amanecer',
     'send' => 'Enviar',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Modelo de imagen',
     'voice_model' => 'Modelo de dictado',
     'output_folder' => 'Carpeta de resultados',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Tamaño',
+    'control_quality' => 'Calidad',
+    'control_background' => 'Fondo',
+    'control_aspect_ratio' => 'Relación de aspecto',
     'model_provider' => 'vía :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Hecho',
     'status_failed' => 'Fallido',
     'status_cancelled' => 'Cancelado',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'En cola',
+    'status_polling' => 'Esperando',
+    'status_skipped' => 'Omitido',
 
     'approve' => 'Aprobar y ejecutar',
     'cancel_job' => 'Cancelar',
@@ -62,6 +72,9 @@ return [
     'progress' => ':done de :total completados',
     'failed_count' => ':n fallidos',
     'reply_placeholder' => 'Respuesta…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'Usted',
+    'turn_assistant' => 'Asistente',
 
     // Steps
     'step_generate' => 'Generar',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'No hay ninguna clave API configurada para ti ni para este sitio.',
     'error_empty_instruction' => 'Di qué quieres que se haga.',
     'error_unknown_model' => 'La pasarela no ofrece ningún modelo de :kind llamado «:model».',
+    'error_model_cannot_continue' => '«:model» no puede realizar el trabajo «:step» que ya está en cola aquí.',
     'error_folder_denied' => 'No puedes escribir en «:folder».',
-    'error_job_not_found' => 'Ese lote no existe, o no es tuyo.',
-    'error_job_finished' => 'Ese lote ya ha terminado.',
-    'error_not_awaiting_approval' => 'Ese lote no está esperando aprobación.',
+    'error_job_not_found' => 'Esa tarea no existe o no es suya.',
+    'error_job_finished' => 'Esa tarea ya ha terminado.',
+    'error_not_awaiting_approval' => 'Esa tarea no está esperando aprobación.',
     'error_key_from_config' => 'La clave del sitio está definida en la configuración y no puede cambiarse aquí.',
     'error_key_rejected' => 'La pasarela rechazó esa clave.',
     'error_no_audio' => 'No se recibió audio.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'No se pudo transcribir nada de esa grabación.',
     'error_empty_text' => 'No hay nada que leer en voz alta.',
     'error_speech_disabled' => 'La lectura de respuestas en voz alta no está configurada.',
+    'error_voice_disabled' => 'La entrada por voz y la lectura en voz alta están desactivadas para este sitio.',
+
+    // The file browser.
+    'files_browse' => 'Explorar…',
+    'files_title' => 'Archivos',
+    'files_up' => 'Subir',
+    'files_use_folder' => 'Guardar resultados aquí',
+    'files_here' => 'Los resultados van aquí',
+    'files_empty' => 'No hay nada en esta carpeta.',
+    'files_resolution' => 'Resolución',
+    'files_bytes' => 'Tamaño',
+    'files_modified' => 'Modificado',
+    'files_url' => 'URL',
+    'files_copy' => 'Copiar',
+    'files_copied' => 'Copiado',
+    'files_unknown' => 'Desconocido',
+    'files_not_writable' => 'No se pueden escribir resultados aquí.',
+    'files_close' => 'Cerrar',
+    'files_locate' => 'Mostrar dónde está este archivo',
+    'error_file_not_found' => 'Esa imagen no existe, o no puede verla.',
 ];

@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Kuvaile erä kuvatyötä; se suoritetaan taustalla.',
+    'tagline' => 'Kuvaile tarvitsemasi kuvatyö; se suoritetaan taustalla.',
     'denied' => 'Sinulla ei ole oikeutta käyttää AIMagea.',
 
-    'new_job' => 'Uusi erä',
-    'jobs' => 'Erät',
+    'new_job' => 'Uusi tehtävä',
+    'jobs' => 'Tehtävät',
     'no_jobs' => 'Ei vielä mitään. Kuvaile, mitä haluat tehtävän.',
     'instruction_placeholder' => 'esim. suurenna kaikki kuvat kansiossa products/, tai luo 10 kuvaa vuoristojärvestä aamunkoitteessa',
     'send' => 'Lähetä',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Kuvamalli',
     'voice_model' => 'Sanelumalli',
     'output_folder' => 'Tuloskansio',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Koko',
+    'control_quality' => 'Laatu',
+    'control_background' => 'Tausta',
+    'control_aspect_ratio' => 'Kuvasuhde',
     'model_provider' => 'palvelun :provider kautta',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Valmis',
     'status_failed' => 'Epäonnistui',
     'status_cancelled' => 'Peruutettu',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'Jonossa',
+    'status_polling' => 'Odottaa',
+    'status_skipped' => 'Ohitettu',
 
     'approve' => 'Hyväksy ja suorita',
     'cancel_job' => 'Peruuta',
@@ -62,6 +72,9 @@ return [
     'progress' => ':done / :total valmiina',
     'failed_count' => ':n epäonnistui',
     'reply_placeholder' => 'Vastaus…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'Sinä',
+    'turn_assistant' => 'Avustaja',
 
     // Steps
     'step_generate' => 'Luo',
@@ -87,7 +100,7 @@ return [
     'key_cleared' => 'Avain poistettu.',
 
     // Batching health
-    'batching_unavailable' => 'Taustasuoritus ei ole käytettävissä, joten työ ei käynnisty itsestään.',
+    'batching_unavailable' => 'Taustakäsittely ei ole käytettävissä, joten työ ei käynnisty itsestään.',
     'batching_not_registered' => 'AIMagen tehtävätyyppiä ei ole rekisteröity tähän Evolution CMS -asennukseen.',
     'batching_scheduler_down' => 'Ajastin ei ole käynnissä. Käynnistä se komennolla ”php core/artisan schedule:work” tai '
         . 'aseta cron kutsumaan komentoa ”schedule:run” minuutin välein.',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'API-avainta ei ole määritetty sinulle eikä tälle sivustolle.',
     'error_empty_instruction' => 'Kerro, mitä haluat tehtävän.',
     'error_unknown_model' => 'Yhdyskäytävä ei tarjoa :kind-mallia nimeltä ”:model”.',
+    'error_model_cannot_continue' => '":model" ei osaa tehdä tänne jo jonoon asetettua ":step"-työtä.',
     'error_folder_denied' => 'Et voi kirjoittaa kansioon ”:folder”.',
-    'error_job_not_found' => 'Kyseistä erää ei ole olemassa, tai se ei ole sinun.',
-    'error_job_finished' => 'Kyseinen erä on jo päättynyt.',
-    'error_not_awaiting_approval' => 'Kyseinen erä ei odota hyväksyntää.',
+    'error_job_not_found' => 'Tehtävää ei ole olemassa, tai se ei ole sinun.',
+    'error_job_finished' => 'Kyseinen tehtävä on jo päättynyt.',
+    'error_not_awaiting_approval' => 'Kyseinen tehtävä ei odota hyväksyntää.',
     'error_key_from_config' => 'Sivuston avain on asetettu asetustiedostossa, eikä sitä voi muuttaa täältä.',
     'error_key_rejected' => 'Yhdyskäytävä hylkäsi kyseisen avaimen.',
     'error_no_audio' => 'Ääntä ei vastaanotettu.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'Kyseisestä tallenteesta ei saatu purettua mitään.',
     'error_empty_text' => 'Ei ole mitään luettavaa ääneen.',
     'error_speech_disabled' => 'Vastausten lukemista ääneen ei ole määritetty.',
+    'error_voice_disabled' => 'Puhesyöttö ja ääneen lukeminen on poistettu käytöstä tässä sivustossa.',
+
+    // The file browser.
+    'files_browse' => 'Selaa…',
+    'files_title' => 'Tiedostot',
+    'files_up' => 'Ylös',
+    'files_use_folder' => 'Tallenna tulokset tänne',
+    'files_here' => 'Tulokset tulevat tänne',
+    'files_empty' => 'Tässä kansiossa ei ole mitään.',
+    'files_resolution' => 'Tarkkuus',
+    'files_bytes' => 'Koko',
+    'files_modified' => 'Muokattu',
+    'files_url' => 'URL',
+    'files_copy' => 'Kopioi',
+    'files_copied' => 'Kopioitu',
+    'files_unknown' => 'Tuntematon',
+    'files_not_writable' => 'Tuloksia ei voi kirjoittaa tänne.',
+    'files_close' => 'Sulje',
+    'files_locate' => 'Näytä, missä tiedosto on',
+    'error_file_not_found' => 'Kuvaa ei ole olemassa, tai et saa nähdä sitä.',
 ];

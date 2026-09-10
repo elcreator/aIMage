@@ -2,6 +2,7 @@
 
 namespace Elcreator\aIMage\Http\Controllers;
 
+use Elcreator\aIMage\Gateway\ModelCatalog;
 use Elcreator\aIMage\Models\Job;
 use Elcreator\aIMage\Models\JobStep;
 use Elcreator\aIMage\Models\Message;
@@ -81,10 +82,17 @@ class JobController extends Controller
             }
         }
 
-        $folder = trim((string) $request->input('output_folder')) ?: $scope->outputFolder();
+        $requestedFolder = trim((string) $request->input('output_folder')) ?: $scope->outputFolder();
 
-        if (!$scope->canWrite(trim($folder, '/') . '/probe.png')) {
-            return $this->fail('folder_denied', __('aIMage::global.error_folder_denied', ['folder' => $folder]));
+        // Anchored under the write root here, not merely checked, so the value
+        // stored on the job is the one every later step will actually use.
+        $folder = $scope->resolveWriteFolder($requestedFolder);
+
+        if ($folder === null || !$scope->canWrite($folder . '/probe.png')) {
+            return $this->fail(
+                'folder_denied',
+                __('aIMage::global.error_folder_denied', ['folder' => $requestedFolder])
+            );
         }
 
         $now = now();
@@ -98,7 +106,7 @@ class JobController extends Controller
             'image_model' => $imageModel,
             'voice_model' => $this->pickModel($request, 'voice_model', 'voice'),
             'controls_json' => $this->controlsFrom($request),
-            'output_folder' => trim($folder, '/'),
+            'output_folder' => $folder,
             'planner_turns' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -208,6 +216,101 @@ class JobController extends Controller
         return $this->ok(['job' => $this->detail($job)]);
     }
 
+    /**
+     * Change the models a task in flight will carry on with.
+     *
+     * The pickers at the top of the page belong to whichever task is open, not
+     * to the page, so switching tasks shows that task's models and changing one
+     * has to reach the task rather than the next thing the manager creates.
+     *
+     * Queued steps are re-pointed at the new image model as well. Without that
+     * the change would be honoured by the planner and ignored by everything it
+     * had already queued — the manager would see the model they chose and get
+     * images from the one they replaced.
+     */
+    public function models(Request $request, string $uuid): JsonResponse
+    {
+        if (!$this->authorized()) {
+            return $this->denied();
+        }
+
+        $job = $this->findJob($uuid);
+
+        if ($job === null) {
+            return $this->fail('not_found', __('aIMage::global.error_job_not_found'), 404);
+        }
+
+        if ($job->isTerminal()) {
+            return $this->fail('job_finished', __('aIMage::global.error_job_finished'));
+        }
+
+        $client = $this->client();
+
+        if ($client === null) {
+            return $this->fail('no_key', __('aIMage::global.error_no_key'), 409);
+        }
+
+        $catalog = $this->catalog($client);
+        $changes = [];
+
+        foreach (['text_model' => 'text', 'image_model' => 'image'] as $field => $kind) {
+            $model = trim((string) $request->input($field, ''));
+
+            if ($model === '' || $model === (string) $job->{$field}) {
+                continue;
+            }
+
+            if (!$catalog->has($model)) {
+                return $this->fail(
+                    'unknown_model',
+                    __('aIMage::global.error_unknown_model', ['model' => $model, 'kind' => $kind])
+                );
+            }
+
+            $changes[$field] = $model;
+        }
+
+        if (isset($changes['image_model'])) {
+            // Upscaling is pinned to the gateway's own upscaler whatever the
+            // manager picks, so it never constrains this choice.
+            $pending = JobStep::query()
+                ->where('job_id', $job->getKey())
+                ->where('status', JobStep::STATUS_QUEUED)
+                ->where('type', '!=', JobStep::TYPE_UPSCALE)
+                ->get();
+
+            foreach ($pending as $step) {
+                $action = $this->actionFor((string) $step->type);
+
+                if ($action !== null && !$catalog->supports($changes['image_model'], $action)) {
+                    // Refused now rather than at four in the morning, one step
+                    // at a time, in a task the manager has stopped watching.
+                    return $this->fail('unknown_model', __('aIMage::global.error_model_cannot_continue', [
+                        'model' => $changes['image_model'],
+                        'step' => __('aIMage::global.step_' . $step->type),
+                    ]));
+                }
+            }
+        }
+
+        if ($changes !== []) {
+            $job->forceFill($changes + ['updated_at' => now()])->save();
+
+            if (isset($changes['image_model'])) {
+                JobStep::query()
+                    ->where('job_id', $job->getKey())
+                    // Only work that has not started. A step already run was
+                    // paid for on the model it ran on, and rewriting its model
+                    // would misreport what produced the image on disk.
+                    ->where('status', JobStep::STATUS_QUEUED)
+                    ->where('type', '!=', JobStep::TYPE_UPSCALE)
+                    ->update(['model' => $changes['image_model'], 'updated_at' => now()]);
+            }
+        }
+
+        return $this->ok(['job' => $this->detail($job)]);
+    }
+
     public function cancel(string $uuid): JsonResponse
     {
         if (!$this->authorized()) {
@@ -288,13 +391,16 @@ class JobController extends Controller
         $messages = Message::query()
             ->where('job_id', $job->getKey())
             ->orderBy('seq')
-            // Tool traffic is machinery, not conversation. Showing it would
-            // bury the one line the manager actually has to read.
+            // Tool traffic and wordless planner turns are machinery, not
+            // conversation. Showing them would bury the one line the manager
+            // actually has to read. See Message::isConversational().
             ->whereIn('role', [Message::ROLE_USER, Message::ROLE_ASSISTANT])
             ->get()
+            ->filter(static fn (Message $message) => $message->isConversational())
+            ->values()
             ->map(static fn (Message $message) => [
                 'role' => (string) $message->role,
-                'text' => (string) $message->text,
+                'text' => $message->displayText(),
                 'spoken' => (string) $message->audio_path !== '',
                 'created_at' => optional($message->created_at)->toDateTimeString(),
             ])
@@ -324,6 +430,17 @@ class JobController extends Controller
         }
 
         return $controls;
+    }
+
+    /** The catalogue action a queued step of this type needs, if it needs one. */
+    private function actionFor(string $type): ?string
+    {
+        return match ($type) {
+            JobStep::TYPE_GENERATE => ModelCatalog::ACTION_TEXT_TO_IMAGE,
+            JobStep::TYPE_EDIT => ModelCatalog::ACTION_IMAGES_AND_TEXT_TO_IMAGE,
+            JobStep::TYPE_VARIATE => ModelCatalog::ACTION_VARIATE_IMAGE,
+            default => null,
+        };
     }
 
     private function pickModel(Request $request, string $field, string $kind): string

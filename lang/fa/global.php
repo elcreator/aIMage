@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'یک دستهٔ کار روی تصویرها را شرح دهید؛ در پس‌زمینه اجرا می‌شود.',
+    'tagline' => 'کاری را که با تصاویر لازم دارید توصیف کنید؛ در پس‌زمینه اجرا می‌شود.',
     'denied' => 'شما اجازهٔ استفاده از AIMage را ندارید.',
 
-    'new_job' => 'دستهٔ جدید',
-    'jobs' => 'دسته‌ها',
+    'new_job' => 'کار جدید',
+    'jobs' => 'کارها',
     'no_jobs' => 'هنوز چیزی نیست. شرح دهید چه کاری باید انجام شود.',
     'instruction_placeholder' => 'مثلاً: همهٔ تصویرهای products/ را بزرگ کن، یا ۱۰ تصویر از دریاچه‌ای کوهستانی در سپیده‌دم بساز',
     'send' => 'ارسال',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'مدل تصویر',
     'voice_model' => 'مدل گفتارنویسی',
     'output_folder' => 'پوشهٔ نتایج',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'اندازه',
+    'control_quality' => 'کیفیت',
+    'control_background' => 'پس‌زمینه',
+    'control_aspect_ratio' => 'نسبت ابعاد',
     'model_provider' => 'از طریق :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'انجام شد',
     'status_failed' => 'ناموفق',
     'status_cancelled' => 'لغو شد',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'در صف',
+    'status_polling' => 'در انتظار',
+    'status_skipped' => 'رد شده',
 
     'approve' => 'تأیید و اجرا',
     'cancel_job' => 'لغو',
@@ -62,6 +72,9 @@ return [
     'progress' => ':done از :total انجام شد',
     'failed_count' => ':n ناموفق',
     'reply_placeholder' => 'پاسخ…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'شما',
+    'turn_assistant' => 'دستیار',
 
     // Steps
     'step_generate' => 'ساخت',
@@ -87,7 +100,7 @@ return [
     'key_cleared' => 'کلید حذف شد.',
 
     // Batching health
-    'batching_unavailable' => 'اجرای پس‌زمینه در دسترس نیست، بنابراین کار به‌خودی‌خود آغاز نخواهد شد.',
+    'batching_unavailable' => 'پردازش پس‌زمینه در دسترس نیست، بنابراین کار خودبه‌خود اجرا نمی‌شود.',
     'batching_not_registered' => 'نوع وظیفهٔ AIMage در این نصب Evolution CMS ثبت نشده است.',
     'batching_scheduler_down' => 'زمان‌بند در حال اجرا نیست. آن را با «php core/artisan schedule:work» اجرا کنید، یا '
         . 'cron را طوری تنظیم کنید که هر دقیقه «schedule:run» را فراخوانی کند.',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'نه برای شما و نه برای این سایت کلید API تنظیم نشده است.',
     'error_empty_instruction' => 'بنویسید چه کاری باید انجام شود.',
     'error_unknown_model' => 'دروازه هیچ مدل :kind با نام «:model» ارائه نمی‌دهد.',
+    'error_model_cannot_continue' => '«:model» نمی‌تواند کار «:step» را که از پیش اینجا در صف است انجام دهد.',
     'error_folder_denied' => 'اجازهٔ نوشتن در «:folder» را ندارید.',
-    'error_job_not_found' => 'چنین دسته‌ای وجود ندارد، یا متعلق به شما نیست.',
-    'error_job_finished' => 'این دسته پیش‌تر به پایان رسیده است.',
-    'error_not_awaiting_approval' => 'این دسته منتظر تأیید نیست.',
+    'error_job_not_found' => 'چنین کاری وجود ندارد یا از آنِ شما نیست.',
+    'error_job_finished' => 'این کار پیش‌تر به پایان رسیده است.',
+    'error_not_awaiting_approval' => 'این کار در انتظار تأیید نیست.',
     'error_key_from_config' => 'کلید سایت در پیکربندی تعیین شده و از اینجا قابل تغییر نیست.',
     'error_key_rejected' => 'دروازه این کلید را نپذیرفت.',
     'error_no_audio' => 'هیچ صدایی دریافت نشد.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'از این ضبط چیزی قابل پیاده‌سازی نبود.',
     'error_empty_text' => 'چیزی برای خواندن با صدای بلند وجود ندارد.',
     'error_speech_disabled' => 'خواندن پاسخ‌ها با صدای بلند پیکربندی نشده است.',
+    'error_voice_disabled' => 'ورودی صوتی و خواندن با صدای بلند برای این سایت خاموش است.',
+
+    // The file browser.
+    'files_browse' => 'مرور…',
+    'files_title' => 'پرونده‌ها',
+    'files_up' => 'بالا',
+    'files_use_folder' => 'نتایج اینجا',
+    'files_here' => 'نتایج اینجا ذخیره می‌شوند',
+    'files_empty' => 'در این پوشه چیزی نیست.',
+    'files_resolution' => 'تفکیک‌پذیری',
+    'files_bytes' => 'اندازه',
+    'files_modified' => 'تغییر',
+    'files_url' => 'نشانی',
+    'files_copy' => 'رونوشت',
+    'files_copied' => 'رونوشت شد',
+    'files_unknown' => 'نامعلوم',
+    'files_not_writable' => 'نمی‌توان نتایج را اینجا نوشت.',
+    'files_close' => 'بستن',
+    'files_locate' => 'نمایش محل این پرونده',
+    'error_file_not_found' => 'این تصویر وجود ندارد یا اجازهٔ دیدن آن را ندارید.',
 ];

@@ -71,6 +71,54 @@ image is exactly what the worker exists to avoid.
   - per-user `filemanager_path` / `upload_images` from `user_settings`, falling back to the
     system setting
   - then `FileManagerAccess::isAccessible()`, which is pure and takes the groups explicitly.
+- **There are two file roots, and they are different settings.** The manager's Files page
+  (`manager/actions/files.dynamic.php`) is rooted at `filemanager_path`, falling back to the
+  site root. KCFinder — the browser TinyMCE's *Insert image* dialog opens
+  (`manager/media/browser/mcpuk/config.php`) — is rooted at `rb_base_dir`, which ships as
+  `[(base_path)]assets/`, with `image_base_upload_dir` overriding it and a relative override
+  resolved against it rather than against the site root. Results have to satisfy **both**, so
+  `ImageScope` writes only under the narrower of the two: a confined manager's own folder, or
+  `assets/` for a manager whose file root is the whole site. A folder outside that ceiling is
+  re-anchored inside it; a folder trying to climb out with `..` is refused. That is one method,
+  `resolveWriteFolder()`, and every destination — the configured default, a folder the page
+  picked, a folder the planner named — goes through it, with `write()` re-checking as the last
+  gate before bytes reach the disk.
+- **The ceiling and the base are different questions.** `rb_base_dir` (`assets/`) is the ceiling,
+  because it is what the *Insert image* dialog can see. `assets/images` is the base: Evolution's
+  own images directory, which the installer requires and `HelperProcessor` and
+  `LegacyDeleteService` special-case, but which is a **convention, not a setting** — there is no
+  `rb_images_dir`, so `imageBase()` checks the folder exists rather than assuming it. The base is
+  the default destination and where the folder picker starts; the ceiling is what nothing may
+  escape. A folder named *within* the ceiling is honoured as given (`assets/products`), one that
+  is not is created under the base (`123/45` → `assets/images/123/45`). Only the site-wide root
+  gets the `images` suffix: a manager confined to their own folder is already in their image area.
+- **KCFinder does not honour `filemanager_path`.** `manager/media/browser/mcpuk/config.php`
+  reads `rb_base_dir` and nothing else — no `filemanager_path`, no `file_groups`, no role. A
+  manager confined to `assets/clients/456` who opens it is shown the whole `assets/` tree. That
+  is why the module browses through its own `/files` endpoint over `ImageScope` rather than
+  embedding the core's browser, and why "just reuse the system one" is not an option here.
+- **The transcript is not the conversation.** Every row in `aimage_messages` reaches the model,
+  or a resumed planning turn replays a conversation that never happened. Not every row is
+  addressed to the manager: `tool` rows are plumbing, an `assistant` row with empty text is a
+  turn that queued work instead of speaking, and the prose nudge is written as a `user` row
+  because that is the role a model has to receive an instruction in. `Message::isConversational()`
+  and the `internal` flag are what keep those out of the thread; `displayText()` strips tool-call
+  syntax a model wrote out as prose. Filter for the manager, never for the planner.
+- **The module page inherits none of the manager's assets.** `registerRoutingModule()` renders it
+  as its own document inside the frame, so its stylesheet is inlined — and the manager's icon set
+  has to be linked explicitly, from `EVO_MANAGER_URL . 'media/style/common/font-awesome/'`. That
+  constant is derived from the working directory when nothing is serving, so a CLI context
+  reports a URL for wherever php was run; `PageController::managerAsset()` rebuilds it from
+  `MGR_DIR` when it does not look like a URL. Icons come from that set, never from emoji, which
+  render in whatever font the viewer's operating system happens to have.
+- **A label looked up by name fails silently.** `L['status_' + status]`, `L['step_' + type]` and
+  `L['control_' + field]` render the raw key when it is missing — English text in the middle of a
+  translated page, with nothing in the console. `TranslationsTest` enumerates the constants and
+  asserts a key exists for each.
+- **A destination folder is not a source path.** Sources must be real and must come from
+  `list_images`. Destinations need not exist: "put them in 123/45" creates both folders. The
+  planner's system prompt says so explicitly, because a model told only "never invent a path"
+  will refuse a perfectly ordinary instruction.
 - **A manager module with its own routes** is `evo()->registerRoutingModule($name, $routesFile)`:
   it adds the menu entry *and* registers the file as a route group under
   `modules/{md5(name)}` with the `mgr` middleware. Menu link building is in
@@ -206,12 +254,15 @@ no network at all.
 
 ## Build status
 
-**Feature-complete and tested.** 37 source files plus a 6-file suite.
+**Feature-complete and tested.** 37 source files plus a 7-file suite (159 tests).
 
-Covered: `ImageScope` (44 tests — the permission boundary, path safety, listing, writing),
-`ApiKeys` (15 — tiers, encryption at rest, masking), `Tools` (31 — planning, budget caps,
+Covered: `ImageScope` (72 tests — the permission boundary, path safety, listing, writing),
+`ApiKeys` (15 — tiers, encryption at rest, masking), `Tools` (35 — planning, budget caps,
 control validation, hostile paths), `Executor` (19 — sync/async, retries, what gets written),
-`BatchHandler` + `JobQueue` (17 — slicing, resumption, cancellation), the models (11).
+`BatchHandler` + `JobQueue` (21 — slicing, resumption, cancellation), the models (19 — including
+which turns are conversation and which are machinery), and the language files (6 — every key
+present in all 21 files, nothing empty, placeholders intact, and a label for every state, step
+type and model control the page looks up by name).
 Separately, a standalone harness covers `Dialect` and `Estimator` against the live catalogue.
 
 Three real bugs the suite caught, all now fixed and pinned by a test:

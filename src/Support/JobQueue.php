@@ -30,14 +30,20 @@ final class JobQueue
      * Idempotent on purpose: the UI calls it when the manager approves a plan,
      * the handler calls it at the end of every slice, and a double call must
      * not put two workers on the same job.
+     *
+     * `$exceptTaskId` is the slice doing the asking. A handler runs inside a
+     * task that is itself `running`, so without it the guard below matches the
+     * caller, reports a successor that does not exist, and the batch stops
+     * dead the moment that slice finishes — which is every batch needing more
+     * than one slice, so every batch.
      */
-    public static function enqueue(Job $job): ?SystemCliTask
+    public static function enqueue(Job $job, ?int $exceptTaskId = null): ?SystemCliTask
     {
         if (!$job->isRunnable()) {
             return null;
         }
 
-        $existing = static::pendingTaskFor($job);
+        $existing = static::pendingTaskFor($job, $exceptTaskId);
 
         if ($existing !== null) {
             return $existing;
@@ -89,13 +95,18 @@ final class JobQueue
      * `picked` and `running` count as well as `queued`: a slice currently in
      * flight will queue its own successor, and adding another here would put
      * two workers on one job's steps.
+     *
+     * `$exceptTaskId` excludes one row from that verdict, and only a slice
+     * asking on its own behalf may pass it — a task cannot be its own
+     * successor.
      */
-    public static function pendingTaskFor(Job $job): ?SystemCliTask
+    public static function pendingTaskFor(Job $job, ?int $exceptTaskId = null): ?SystemCliTask
     {
         return SystemCliTask::query()
             ->where('type', BatchHandler::TYPE)
             ->where('target', (string) $job->uuid)
             ->whereIn('status', ['queued', 'picked', 'running'])
+            ->when($exceptTaskId !== null, static fn ($query) => $query->where('id', '!=', $exceptTaskId))
             ->orderByDesc('id')
             ->first();
     }

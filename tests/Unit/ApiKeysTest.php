@@ -1,6 +1,7 @@
 <?php
 
 use Elcreator\aIMage\Support\ApiKeys;
+use Elcreator\aIMage\Support\Config;
 use Elcreator\aIMage\Support\Crypt;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
@@ -167,4 +168,28 @@ test('the memo is dropped on flush so a rotated key takes effect', function () {
     ApiKeys::flush();
 
     expect(ApiKeys::forUser(7))->toBe('rotated');
+});
+
+// ---------------------------------------------------------------------------
+// Feature flags
+// ---------------------------------------------------------------------------
+
+test('voice is off unless a site turns it on', function () {
+    // Both halves of the feature send audio to the gateway and cost money per
+    // use, so a site inherits neither by accident.
+    expect(Config::feature('voice'))->toBeFalse()
+        ->and(Config::feature('no_such_feature'))->toBeFalse();
+});
+
+test('a flag reads from the same settings tree as everything else', function () {
+    $key = 'cms.settings.aIMage.features.voice';
+    $previous = config($key);
+
+    config()->set($key, true);
+
+    try {
+        expect(Config::feature('voice'))->toBeTrue();
+    } finally {
+        config()->set($key, $previous);
+    }
 });

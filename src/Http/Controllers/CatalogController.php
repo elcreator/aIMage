@@ -126,17 +126,51 @@ class CatalogController extends Controller
         }
 
         $scope = $this->scope();
-        $folder = (string) $request->query('folder', '');
         $recursive = (bool) $request->query('recursive');
+
+        // One effective folder for both listings. Without this the browser
+        // showed the folders of one directory beside the images of another:
+        // `listFolders('')` starts at the image base, while `listImages('')`
+        // would have walked the file root.
+        $requested = trim((string) $request->query('folder', ''));
+        $folder = $requested === '' ? $scope->imageBase() : $scope->resolveWriteFolder($requested);
+
+        if ($folder === null) {
+            return $this->fail('folder_denied', __('aIMage::global.error_folder_denied', ['folder' => $requested]));
+        }
 
         return $this->ok([
             'folder' => $folder,
+            'parent' => $scope->parentFolder($folder),
+            'base' => $scope->imageBase(),
             'unrestricted' => $scope->isUnrestricted(),
             'output_folder' => $scope->outputFolder(),
+            'writable' => $scope->canWrite($folder . '/probe.png'),
             'extensions' => $scope->allowedExtensions(),
             'folders' => $scope->listFolders($folder),
             'images' => $scope->listImages($folder, $recursive),
         ]);
+    }
+
+    /**
+     * Everything the preview pane shows about one image.
+     *
+     * Separate from the listing so that opening a folder of five hundred
+     * images does not measure five hundred of them.
+     */
+    public function fileInfo(Request $request): JsonResponse
+    {
+        if (!$this->authorized()) {
+            return $this->denied();
+        }
+
+        $info = $this->scope()->imageInfo((string) $request->query('path', ''));
+
+        if ($info === null) {
+            return $this->fail('not_found', __('aIMage::global.error_file_not_found'), 404);
+        }
+
+        return $this->ok(['file' => $info]);
     }
 
     /**

@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Beschreiben Sie einen Stapel Bildarbeit; er wird im Hintergrund ausgeführt.',
+    'tagline' => 'Beschreiben Sie die gewünschte Bildarbeit; sie läuft im Hintergrund.',
     'denied' => 'Sie haben keine Berechtigung, AIMage zu verwenden.',
 
-    'new_job' => 'Neuer Stapel',
-    'jobs' => 'Stapel',
+    'new_job' => 'Neue Aufgabe',
+    'jobs' => 'Aufgaben',
     'no_jobs' => 'Noch nichts. Beschreiben Sie, was getan werden soll.',
     'instruction_placeholder' => 'z. B. alle Bilder in products/ hochskalieren oder 10 Titelbilder eines Bergsees im Morgengrauen erzeugen',
     'send' => 'Senden',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Bildmodell',
     'voice_model' => 'Diktiermodell',
     'output_folder' => 'Ergebnisordner',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Größe',
+    'control_quality' => 'Qualität',
+    'control_background' => 'Hintergrund',
+    'control_aspect_ratio' => 'Seitenverhältnis',
     'model_provider' => 'über :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Fertig',
     'status_failed' => 'Fehlgeschlagen',
     'status_cancelled' => 'Abgebrochen',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'In Warteschlange',
+    'status_polling' => 'Wartet',
+    'status_skipped' => 'Übersprungen',
 
     'approve' => 'Freigeben und ausführen',
     'cancel_job' => 'Abbrechen',
@@ -62,6 +72,9 @@ return [
     'progress' => ':done von :total erledigt',
     'failed_count' => ':n fehlgeschlagen',
     'reply_placeholder' => 'Antwort…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'Sie',
+    'turn_assistant' => 'Assistent',
 
     // Steps
     'step_generate' => 'Erzeugen',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'Weder für Sie noch für diese Website ist ein API-Schlüssel konfiguriert.',
     'error_empty_instruction' => 'Sagen Sie, was getan werden soll.',
     'error_unknown_model' => 'Das Gateway bietet kein :kind-Modell namens „:model“ an.',
+    'error_model_cannot_continue' => '„:model“ kann die hier bereits eingereihte Arbeit „:step“ nicht ausführen.',
     'error_folder_denied' => 'Sie dürfen nicht in „:folder“ schreiben.',
-    'error_job_not_found' => 'Dieser Stapel existiert nicht oder gehört Ihnen nicht.',
-    'error_job_finished' => 'Dieser Stapel ist bereits abgeschlossen.',
-    'error_not_awaiting_approval' => 'Dieser Stapel wartet nicht auf eine Freigabe.',
+    'error_job_not_found' => 'Diese Aufgabe existiert nicht oder gehört Ihnen nicht.',
+    'error_job_finished' => 'Diese Aufgabe ist bereits abgeschlossen.',
+    'error_not_awaiting_approval' => 'Diese Aufgabe wartet nicht auf eine Freigabe.',
     'error_key_from_config' => 'Der Website-Schlüssel ist in der Konfiguration gesetzt und kann hier nicht geändert werden.',
     'error_key_rejected' => 'Das Gateway hat diesen Schlüssel abgelehnt.',
     'error_no_audio' => 'Es wurde kein Audio empfangen.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'Aus dieser Aufnahme konnte nichts transkribiert werden.',
     'error_empty_text' => 'Es gibt nichts vorzulesen.',
     'error_speech_disabled' => 'Das Vorlesen von Antworten ist nicht konfiguriert.',
+    'error_voice_disabled' => 'Spracheingabe und Vorlesen sind für diese Website ausgeschaltet.',
+
+    // The file browser.
+    'files_browse' => 'Durchsuchen…',
+    'files_title' => 'Dateien',
+    'files_up' => 'Nach oben',
+    'files_use_folder' => 'Ergebnisse hierhin',
+    'files_here' => 'Ergebnisse landen hier',
+    'files_empty' => 'In diesem Ordner ist nichts.',
+    'files_resolution' => 'Auflösung',
+    'files_bytes' => 'Größe',
+    'files_modified' => 'Geändert',
+    'files_url' => 'URL',
+    'files_copy' => 'Kopieren',
+    'files_copied' => 'Kopiert',
+    'files_unknown' => 'Unbekannt',
+    'files_not_writable' => 'Hier können keine Ergebnisse gespeichert werden.',
+    'files_close' => 'Schließen',
+    'files_locate' => 'Zeigen, wo diese Datei liegt',
+    'error_file_not_found' => 'Dieses Bild existiert nicht oder Sie dürfen es nicht sehen.',
 ];

@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => '画像作業のバッチを記述すると、バックグラウンドで実行されます。',
+    'tagline' => '必要な画像作業を説明してください。バックグラウンドで実行されます。',
     'denied' => 'AIMage を使用する権限がありません。',
 
-    'new_job' => '新しいバッチ',
-    'jobs' => 'バッチ',
+    'new_job' => '新しいタスク',
+    'jobs' => 'タスク',
     'no_jobs' => 'まだ何もありません。やってほしいことを説明してください。',
     'instruction_placeholder' => '例: products/ の画像をすべて拡大する、または夜明けの山上湖の画像を10枚生成する',
     'send' => '送信',
@@ -25,6 +25,12 @@ return [
     'image_model' => '画像モデル',
     'voice_model' => '音声認識モデル',
     'output_folder' => '結果フォルダ',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'サイズ',
+    'control_quality' => '品質',
+    'control_background' => '背景',
+    'control_aspect_ratio' => 'アスペクト比',
     'model_provider' => ':provider 経由',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => '完了',
     'status_failed' => '失敗',
     'status_cancelled' => 'キャンセル済み',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => '待機中',
+    'status_polling' => '応答待ち',
+    'status_skipped' => 'スキップ',
 
     'approve' => '承認して実行',
     'cancel_job' => 'キャンセル',
@@ -62,6 +72,9 @@ return [
     'progress' => ':total 件中 :done 件完了',
     'failed_count' => '失敗 :n 件',
     'reply_placeholder' => '回答…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'あなた',
+    'turn_assistant' => 'アシスタント',
 
     // Steps
     'step_generate' => '生成',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'あなたにもこのサイトにも API キーが設定されていません。',
     'error_empty_instruction' => 'やってほしいことを入力してください。',
     'error_unknown_model' => 'ゲートウェイに「:model」という :kind モデルはありません。',
+    'error_model_cannot_continue' => '「:model」は、ここですでに待機している「:step」の作業を実行できません。',
     'error_folder_denied' => '「:folder」に書き込むことはできません。',
-    'error_job_not_found' => 'そのバッチは存在しないか、あなたのものではありません。',
-    'error_job_finished' => 'そのバッチはすでに完了しています。',
-    'error_not_awaiting_approval' => 'そのバッチは承認待ちではありません。',
+    'error_job_not_found' => 'そのタスクは存在しないか、あなたのものではありません。',
+    'error_job_finished' => 'そのタスクはすでに完了しています。',
+    'error_not_awaiting_approval' => 'そのタスクは承認待ちではありません。',
     'error_key_from_config' => 'サイトのキーは設定ファイルで指定されており、ここでは変更できません。',
     'error_key_rejected' => 'ゲートウェイがそのキーを拒否しました。',
     'error_no_audio' => '音声を受信できませんでした。',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'その録音からは何も文字起こしできませんでした。',
     'error_empty_text' => '読み上げる内容がありません。',
     'error_speech_disabled' => '回答の読み上げは設定されていません。',
+    'error_voice_disabled' => 'このサイトでは音声入力と読み上げが無効になっています。',
+
+    // The file browser.
+    'files_browse' => '参照…',
+    'files_title' => 'ファイル',
+    'files_up' => '上へ',
+    'files_use_folder' => 'ここに結果を保存',
+    'files_here' => '結果はここに入ります',
+    'files_empty' => 'このフォルダーには何もありません。',
+    'files_resolution' => '解像度',
+    'files_bytes' => 'サイズ',
+    'files_modified' => '更新日時',
+    'files_url' => 'URL',
+    'files_copy' => 'コピー',
+    'files_copied' => 'コピーしました',
+    'files_unknown' => '不明',
+    'files_not_writable' => 'ここには結果を書き込めません。',
+    'files_close' => '閉じる',
+    'files_locate' => 'このファイルの場所を表示',
+    'error_file_not_found' => 'その画像は存在しないか、閲覧できません。',
 ];

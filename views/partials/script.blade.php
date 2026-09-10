@@ -23,7 +23,17 @@
         pollTimer: null,
         pollDelay: 2000,
         recorder: null,
-        recordingFor: null
+        recordingFor: null,
+        files: null,
+        filesFolder: null,
+        job: null,
+        applying: false,
+        filesPicking: true,
+        filesSelect: null,
+        pendingStop: false,
+        speak: false,
+        spoken: null,
+        speakArmed: false
     };
 
     // ------------------------------------------------------------------
@@ -199,18 +209,26 @@
 
         if (!model || !model.controls) { return; }
 
-        var labels = { sizes: 'size', qualities: 'quality', backgrounds: 'background', aspectRatios: 'aspect_ratio' };
+        // The catalogue's plural key, and the singular field name the gateway
+        // takes. The field name is what goes on the wire; only the label beside
+        // it is translated, since the *values* — 1024x1024, auto, transparent —
+        // are the gateway's own vocabulary and mean nothing translated.
+        var fields = { sizes: 'size', qualities: 'quality', backgrounds: 'background', aspectRatios: 'aspect_ratio' };
 
-        Object.keys(labels).forEach(function (key) {
+        Object.keys(fields).forEach(function (key) {
             var values = model.controls[key];
             if (!values || !values.length) { return; }
 
+            var field = fields[key];
             var wrap = document.createElement('label');
             wrap.className = 'ai-field ai-field-narrow';
-            wrap.innerHTML = '<span>' + labels[key] + '</span>';
+
+            var caption = document.createElement('span');
+            caption.textContent = L['control_' + field] || field;
+            wrap.appendChild(caption);
 
             var select = document.createElement('select');
-            select.dataset.control = labels[key];
+            select.dataset.control = field;
             select.appendChild(new Option('—', ''));
             values.forEach(function (v) { select.appendChild(new Option(v, v)); });
             select.addEventListener('change', refreshEstimates);
@@ -253,14 +271,340 @@
     function loadFolders() {
         return api('GET', '/files').then(function (res) {
             if (!res.ok) { return; }
-            var select = $('ai-folder');
-            select.innerHTML = '';
-            select.appendChild(new Option(res.output_folder, res.output_folder));
-            (res.folders || []).forEach(function (f) {
-                if (f.path !== res.output_folder) { select.appendChild(new Option(f.path, f.path)); }
-            });
-            select.value = CFG.defaults.output_folder || res.output_folder;
+            $('ai-folder').value = CFG.defaults.output_folder || res.output_folder;
+            state.filesFolder = res.folder;
         });
+    }
+
+    // ------------------------------------------------------------------
+    // The file browser
+    //
+    // It keeps its own view of the tree, separate from the composer's: opening
+    // it and looking around must not change where results are going. Only
+    // "Put results here" does that.
+    // ------------------------------------------------------------------
+
+    /** Open the browser to choose where results go. */
+    function openFiles() {
+        state.filesPicking = true;
+        state.filesSelect = null;
+        $('ai-files-use').hidden = false;
+        $('ai-files').hidden = false;
+        browse(($('ai-folder').value || '').trim() || state.filesFolder || '');
+    }
+
+    /**
+     * Open the browser to show where one image ended up.
+     *
+     * The same dialog, without the one control that changes anything: looking
+     * for a file must not quietly re-point a task's results at whatever folder
+     * the manager happened to stop in. Everything else — navigating, the
+     * preview, Close — behaves identically.
+     */
+    function inspectFile(path) {
+        state.filesPicking = false;
+        state.filesSelect = path;
+        $('ai-files-use').hidden = true;
+        $('ai-files').hidden = false;
+        browse(parentOf(path));
+    }
+
+    function parentOf(path) {
+        var cut = String(path || '').lastIndexOf('/');
+        return cut === -1 ? '' : path.slice(0, cut);
+    }
+
+    function closeFiles() {
+        $('ai-files').hidden = true;
+        state.filesSelect = null;
+    }
+
+    function browse(folder) {
+        say($('ai-files-msg'), '');
+        clearPreview();
+
+        return api('GET', '/files', null, { folder: folder }).then(function (res) {
+            if (!res.ok) {
+                say($('ai-files-msg'), res.message, 'error');
+                return;
+            }
+
+            state.files = res;
+            renderCrumbs(res);
+            renderEntries(res);
+
+            $('ai-files-up').disabled = res.parent === null;
+            $('ai-files-use').disabled = !res.writable;
+
+            // Only while choosing. Somebody looking for a file has not asked
+            // to write anything, so a refusal to write is not their problem.
+            if (state.filesPicking && !res.writable) {
+                say($('ai-files-msg'), L.files_not_writable, 'error');
+            }
+        });
+    }
+
+    /**
+     * The path, one segment at a time.
+     *
+     * Only the current folder and its ancestors down to the ceiling can be
+     * navigated to. Anything above the ceiling is shown so the path reads
+     * correctly, but it is not a link: there is nothing up there a result could
+     * be written to, and offering the climb would only earn a refusal.
+     */
+    function renderCrumbs(res) {
+        var nav = $('ai-files-crumbs');
+        nav.innerHTML = '';
+
+        var segments = (res.folder || '').split('/').filter(Boolean);
+
+        if (!segments.length) {
+            var root = document.createElement('span');
+            root.className = 'ai-crumb is-current';
+            root.textContent = '/';
+            nav.appendChild(root);
+            return;
+        }
+
+        // The server says what the parent is; everything shallower than that is
+        // above the ceiling. One walk up from the parent gives the reachable
+        // set without the front end having to know the rule.
+        var reachable = {};
+        if (res.parent !== null && res.parent !== undefined) {
+            var probe = res.parent;
+            for (;;) {
+                reachable[probe] = true;
+                if (!probe) { break; }
+                var cut = probe.lastIndexOf('/');
+                probe = cut === -1 ? '' : probe.slice(0, cut);
+                if (probe === '' && res.parent === '') { break; }
+            }
+        }
+
+        var walked = [];
+
+        segments.forEach(function (segment, index) {
+            walked.push(segment);
+
+            var path = walked.join('/');
+            var last = index === segments.length - 1;
+            var node;
+
+            if (!last && reachable[path]) {
+                node = document.createElement('button');
+                node.type = 'button';
+                node.className = 'ai-crumb';
+                node.addEventListener('click', function () { browse(path); });
+            } else {
+                node = document.createElement('span');
+                node.className = 'ai-crumb' + (last ? ' is-current' : ' is-fixed');
+            }
+
+            node.textContent = segment;
+            if (index) { nav.appendChild(document.createTextNode('/')); }
+            nav.appendChild(node);
+        });
+    }
+
+    function renderEntries(res) {
+        var list = $('ai-files-list');
+        list.innerHTML = '';
+
+        (res.folders || []).forEach(function (folder) {
+            var node = entryNode('ai-entry-folder', folder.name);
+            node.insertBefore(iconNode('fa-folder'), node.firstChild);
+            node.addEventListener('click', function () { browse(folder.path); });
+            list.appendChild(node);
+        });
+
+        (res.images || []).forEach(function (image) {
+            var node = entryNode('ai-entry-image', image.name);
+
+            if (image.url) {
+                var thumb = document.createElement('img');
+                thumb.src = image.url;
+                thumb.alt = '';
+                thumb.loading = 'lazy';
+                node.insertBefore(thumb, node.firstChild);
+            } else {
+                node.insertBefore(iconNode('fa-image'), node.firstChild);
+            }
+
+            node.addEventListener('click', function () {
+                Array.prototype.forEach.call(list.children, function (child) {
+                    child.classList.remove('is-selected');
+                });
+                node.classList.add('is-selected');
+                showPreview(image.path);
+            });
+
+            // Opened to show where one image is: select it and open its
+            // metadata, then forget it, so navigating on from here behaves
+            // like any other browse.
+            if (state.filesSelect === image.path) {
+                state.filesSelect = null;
+                node.classList.add('is-selected');
+                node.scrollIntoView({ block: 'nearest' });
+                showPreview(image.path);
+            }
+
+            list.appendChild(node);
+        });
+
+        if (!list.children.length) {
+            var empty = document.createElement('p');
+            empty.className = 'ai-hint';
+            empty.textContent = L.files_empty;
+            list.appendChild(empty);
+        }
+    }
+
+    function entryNode(className, label) {
+        var node = document.createElement('button');
+        node.type = 'button';
+        node.className = 'ai-entry ' + className;
+        node.title = label;
+
+        var name = document.createElement('span');
+        name.className = 'ai-entry-name';
+        name.textContent = label;
+        node.appendChild(name);
+
+        return node;
+    }
+
+    /** An icon from the manager's own set, which this page loads in its head. */
+    function iconNode(name) {
+        var icon = document.createElement('i');
+        icon.className = 'ai-entry-icon fa ' + name;
+        icon.setAttribute('aria-hidden', 'true');
+        return icon;
+    }
+
+    function clearPreview() {
+        var pane = $('ai-files-preview');
+        pane.hidden = true;
+        pane.innerHTML = '';
+    }
+
+    /**
+     * Metadata is fetched per image rather than carried in the listing:
+     * measuring a file means opening it, and a folder of five hundred images is
+     * not five hundred questions anybody asked.
+     */
+    function showPreview(path) {
+        api('GET', '/files/info', null, { path: path }).then(function (res) {
+            var pane = $('ai-files-preview');
+
+            if (!res.ok) {
+                say($('ai-files-msg'), res.message, 'error');
+                clearPreview();
+                return;
+            }
+
+            var file = res.file;
+
+            pane.hidden = false;
+            pane.innerHTML = '';
+
+            if (file.url) {
+                var figure = document.createElement('img');
+                figure.className = 'ai-preview-image';
+                figure.src = file.url;
+                figure.alt = file.name;
+                pane.appendChild(figure);
+            }
+
+            var heading = document.createElement('h3');
+            heading.textContent = file.name;
+            pane.appendChild(heading);
+
+            pane.appendChild(metaRow(
+                L.files_resolution,
+                (file.width && file.height) ? file.width + ' × ' + file.height : L.files_unknown
+            ));
+            pane.appendChild(metaRow(L.files_bytes, humanBytes(file.bytes)));
+            pane.appendChild(metaRow(
+                L.files_modified,
+                file.modified ? new Date(file.modified * 1000).toLocaleString() : L.files_unknown
+            ));
+            pane.appendChild(urlRow(file));
+        });
+    }
+
+    function metaRow(label, value) {
+        var row = document.createElement('p');
+        row.className = 'ai-meta';
+
+        var key = document.createElement('span');
+        key.textContent = label;
+
+        var val = document.createElement('strong');
+        val.textContent = value;
+
+        row.appendChild(key);
+        row.appendChild(val);
+
+        return row;
+    }
+
+    /**
+     * The URL is what most people open this for — it is the thing that gets
+     * pasted into a page — so it is selectable text with a copy button beside
+     * it, not a truncated line of prose.
+     */
+    function urlRow(file) {
+        var row = document.createElement('p');
+        row.className = 'ai-meta ai-meta-url';
+
+        var key = document.createElement('span');
+        key.textContent = L.files_url;
+        row.appendChild(key);
+
+        var field = document.createElement('input');
+        field.type = 'text';
+        field.readOnly = true;
+        field.value = file.url || file.path;
+        field.addEventListener('focus', function () { field.select(); });
+        row.appendChild(field);
+
+        var copy = document.createElement('button');
+        copy.type = 'button';
+        copy.className = 'ai-btn ai-btn-small';
+        copy.textContent = L.files_copy;
+        copy.addEventListener('click', function () {
+            var done = function () { copy.textContent = L.files_copied; };
+
+            field.select();
+
+            // The clipboard API needs a secure context, and a manager served
+            // over plain HTTP on a local network is ordinary. execCommand is
+            // deprecated but is what still works there.
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(field.value).then(done, function () {
+                    if (document.execCommand('copy')) { done(); }
+                });
+            } else if (document.execCommand('copy')) {
+                done();
+            }
+        });
+        row.appendChild(copy);
+
+        return row;
+    }
+
+    function humanBytes(bytes) {
+        if (!bytes) { return L.files_unknown; }
+
+        var units = ['B', 'KB', 'MB', 'GB'];
+        var index = 0;
+
+        while (bytes >= 1024 && index < units.length - 1) {
+            bytes /= 1024;
+            index++;
+        }
+
+        return (index ? bytes.toFixed(1) : bytes) + ' ' + units[index];
     }
 
     // ------------------------------------------------------------------
@@ -333,6 +677,8 @@
     function openJob(uuid) {
         state.jobUuid = uuid;
         state.pollDelay = 2000;
+        state.speakArmed = false;
+        state.spoken = null;
         pollJob();
         loadJobs();
     }
@@ -358,7 +704,67 @@
         });
     }
 
+    /**
+     * Point the pickers at whichever task is open.
+     *
+     * They are the open task's settings, not the page's. Leaving them alone
+     * when the manager switches tasks shows one task's models above another
+     * task's images, and the next change silently writes to the wrong one.
+     *
+     * `state.applying` keeps the change handlers quiet while this runs, so
+     * restoring a task's own models does not save them back to it.
+     */
+    function applyJobSettings(job) {
+        state.applying = true;
+
+        try {
+            if (job.image_model && $('ai-image-model').value !== job.image_model) {
+                $('ai-image-model').value = job.image_model;
+                renderControls();
+            }
+
+            if (job.text_model) { $('ai-text-model').value = job.text_model; }
+            if (job.output_folder) { $('ai-folder').value = job.output_folder; }
+
+            var controls = job.controls || {};
+            Array.prototype.forEach.call(
+                $('ai-controls').querySelectorAll('select[data-control]'),
+                function (select) { select.value = controls[select.dataset.control] || ''; }
+            );
+        } finally {
+            state.applying = false;
+        }
+
+        refreshEstimates();
+    }
+
+    /** Carry a picker change into the open task, so it continues on the new model. */
+    function saveJobModels() {
+        if (state.applying || !state.jobUuid) { return; }
+
+        var msg = $('ai-compose-msg');
+
+        api('POST', '/jobs/' + encodeURIComponent(state.jobUuid) + '/models', {
+            text_model: $('ai-text-model').value,
+            image_model: $('ai-image-model').value
+        }).then(function (res) {
+            if (!res.ok) {
+                // Put the pickers back to what the task actually has, or they
+                // would keep showing a model the task refused.
+                say(msg, res.message, 'error');
+                if (state.job) { applyJobSettings(state.job); }
+                return;
+            }
+
+            say(msg, '');
+            state.job = res.job;
+        });
+    }
+
     function renderJob(job) {
+        state.job = job;
+        applyJobSettings(job);
+
         $('ai-job').hidden = false;
         $('ai-job-title').textContent = job.title || '—';
 
@@ -393,6 +799,7 @@
 
         renderThread(job);
         renderSteps(job);
+        maybeSpeak(job);
     }
 
     function renderThread(job) {
@@ -403,7 +810,15 @@
             div.className = 'ai-turn ai-turn-' + m.role;
             var role = document.createElement('span');
             role.className = 'ai-turn-role';
-            role.textContent = m.role + (m.spoken ? ' 🎙' : '');
+            role.textContent = L['turn_' + m.role] || m.role;
+
+            if (m.spoken) {
+                var spoken = document.createElement('i');
+                spoken.className = 'fa fa-microphone ai-turn-spoken';
+                spoken.setAttribute('aria-hidden', 'true');
+                role.appendChild(document.createTextNode(' '));
+                role.appendChild(spoken);
+            }
             var body = document.createElement('p');
             body.textContent = m.text;
             div.appendChild(role);
@@ -411,7 +826,13 @@
             thread.appendChild(div);
         });
 
-        if (job.message && (job.status === 'awaiting_input' || job.status === 'failed')) {
+        // The job's own message repeats the last turn when the planner gave up
+        // on a model that would not use its tools — the turn *is* the message.
+        // Printing it twice reads as the assistant having said it twice.
+        var last = (job.messages || [])[(job.messages || []).length - 1];
+        var repeats = last && last.role === 'assistant' && last.text === job.message;
+
+        if (job.message && !repeats && (job.status === 'awaiting_input' || job.status === 'failed')) {
             var note = document.createElement('div');
             note.className = 'ai-turn ai-turn-assistant';
             note.innerHTML = '<span class="ai-turn-role">' + statusLabel(job.status) + '</span>';
@@ -442,7 +863,7 @@
             kind.textContent = L['step_' + step.type] || step.type;
             var badge = document.createElement('span');
             badge.className = 'ai-badge is-' + step.status;
-            badge.textContent = step.status;
+            badge.textContent = statusLabel(step.status);
             head.appendChild(kind);
             head.appendChild(badge);
             card.appendChild(head);
@@ -455,11 +876,14 @@
             }
 
             if (step.target_url) {
-                pair.appendChild(figure(step.target_url, L.after, step.target_path));
+                // A result is always inside the write root, so the browser can
+                // always open where it landed. A source may not be — it can sit
+                // anywhere the manager may read — so only the result is a link.
+                pair.appendChild(figure(step.target_url, L.after, step.target_path, true));
             } else {
                 var placeholder = document.createElement('div');
                 placeholder.className = 'ai-step-placeholder';
-                placeholder.textContent = step.status;
+                placeholder.textContent = statusLabel(step.status);
                 pair.appendChild(placeholder);
             }
 
@@ -476,7 +900,7 @@
         });
     }
 
-    function figure(src, caption, path) {
+    function figure(src, caption, path, locatable) {
         var fig = document.createElement('figure');
         var img = document.createElement('img');
         img.src = src;
@@ -487,7 +911,47 @@
         cap.title = path || '';
         fig.appendChild(img);
         fig.appendChild(cap);
+
+        if (locatable && path) {
+            fig.className = 'is-locatable';
+            fig.title = L.files_locate || path;
+            fig.addEventListener('click', function () { inspectFile(path); });
+        }
+
         return fig;
+    }
+
+    /**
+     * Enter sends, Shift+Enter is a newline.
+     *
+     * Applied to both boxes from one place. A brief is often several lines and
+     * an answer sometimes is, so the modifier has to mean the same thing in
+     * each — and the reply box was an `<input>`, which cannot hold a newline
+     * at all however it is typed.
+     */
+    function sendOnEnter(field, send) {
+        field.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                send();
+            }
+        });
+    }
+
+    function sendReply() {
+        var field = $('ai-reply-input');
+        var value = (field.value || '').trim();
+
+        if (!value || !state.jobUuid) { return; }
+
+        api('POST', '/jobs/' + encodeURIComponent(state.jobUuid) + '/reply', { message: value })
+            .then(function (res) {
+                if (!res.ok) { return; }
+                field.value = '';
+                state.pollDelay = 2000;
+                renderJob(res.job);
+                pollJob();
+            });
     }
 
     function submitInstruction() {
@@ -526,13 +990,99 @@
      * the box as text the person can correct before sending. Speech is an
      * input method here, never a result.
      */
-    function toggleRecording(button, targetInput) {
-        if (state.recorder && state.recordingFor === button) {
-            state.recorder.stop();
+    /** A microphone that is listening offers to stop, not to start again. */
+    function setMicIcon(button, recording) {
+        var icon = button.querySelector('i');
+        if (icon) { icon.className = 'fa ' + (recording ? 'fa-stop' : 'fa-microphone'); }
+    }
+
+    /**
+     * Read one answer aloud.
+     *
+     * Not through `api()`: that helper parses every response as JSON, and this
+     * endpoint returns audio. A refusal *does* come back as JSON, which is why
+     * the content type is checked rather than the status alone.
+     */
+    function speakText(message) {
+        if (!state.speak || !message) { return; }
+
+        fetch(url('/voice/speak'), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'X-CSRF-TOKEN': CFG.csrf,
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ text: message, model: CFG.defaults.speech_model || '' })
+        }).then(function (res) {
+            var type = res.headers.get('Content-Type') || '';
+            return (res.ok && type.indexOf('audio') !== -1) ? res.blob() : null;
+        }).then(function (blob) {
+            if (!blob) { return; }
+
+            var audio = new Audio(URL.createObjectURL(blob));
+            audio.onended = function () { URL.revokeObjectURL(audio.src); };
+            // A browser may refuse to play sound the person did not ask for by
+            // clicking. Refusing quietly is right: this is a convenience.
+            audio.play().catch(function () {});
+        }).catch(function () {});
+    }
+
+    /**
+     * Speak an answer that has just arrived, and only that.
+     *
+     * Opening a task must not read its history back, so the first render of a
+     * task records where the conversation stands without saying anything; only
+     * what arrives while it is being watched is spoken.
+     */
+    function maybeSpeak(job) {
+        var latest = null;
+
+        (job.messages || []).forEach(function (m) {
+            if (m.role === 'assistant' && m.text) { latest = m.text; }
+        });
+
+        if (!state.speakArmed) {
+            state.speakArmed = true;
+            state.spoken = latest;
             return;
         }
 
+        if (latest && latest !== state.spoken) {
+            state.spoken = latest;
+            speakText(latest);
+        }
+    }
+
+    /** How long a press has to last before it counts as holding rather than clicking. */
+    var HOLD_MS = 350;
+
+    function isRecording(button) {
+        return state.recordingFor === button;
+    }
+
+    function resetMic(button) {
+        button.classList.remove('is-recording');
+        setMicIcon(button, false);
+        button.title = L.record;
+    }
+
+    function startRecording(button, targetInput) {
+        // One microphone, one recorder. Two buttons racing for it would leave
+        // the loser's UI stuck in the recording state for ever.
+        if (state.recordingFor) { return; }
+
         if (!navigator.mediaDevices || !window.MediaRecorder) { return; }
+
+        // Claimed before the permission prompt resolves, not after: a release
+        // can arrive while the browser is still asking, and there has to be
+        // something for it to cancel.
+        state.recordingFor = button;
+        state.pendingStop = false;
+        button.classList.add('is-recording');
+        setMicIcon(button, true);
+        button.title = L.recording;
 
         navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
             var chunks = [];
@@ -543,8 +1093,7 @@
                 stream.getTracks().forEach(function (t) { t.stop(); });
                 state.recorder = null;
                 state.recordingFor = null;
-                button.classList.remove('is-recording');
-                button.title = L.record;
+                resetMic(button);
 
                 var form = new FormData();
                 form.append('audio', new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }), 'speech.webm');
@@ -555,6 +1104,9 @@
                 api('POST', '/voice/transcribe', form).then(function (res) {
                     say($('ai-compose-msg'), res.ok ? '' : res.message, res.ok ? null : 'error');
                     if (res.ok) {
+                        // The transcript lands in the box rather than being sent.
+                        // Speech is an input method here: a misheard word should
+                        // cost a correction, not a batch of images.
                         targetInput.value = (targetInput.value ? targetInput.value + ' ' : '') + res.text;
                         targetInput.focus();
                         refreshEstimates();
@@ -564,11 +1116,86 @@
 
             recorder.start();
             state.recorder = recorder;
-            state.recordingFor = button;
-            button.classList.add('is-recording');
-            button.title = L.recording;
+
+            // Let go before the microphone opened. Honour it now.
+            if (state.pendingStop) { stopRecording(button); }
         }).catch(function () {
+            state.recordingFor = null;
+            resetMic(button);
             say($('ai-compose-msg'), 'Microphone unavailable.', 'error');
+        });
+    }
+
+    function stopRecording(button) {
+        if (!isRecording(button)) { return; }
+
+        if (!state.recorder) {
+            state.pendingStop = true;
+            return;
+        }
+
+        state.recorder.stop();
+    }
+
+    function toggleRecording(button, targetInput) {
+        if (isRecording(button)) {
+            stopRecording(button);
+        } else {
+            startRecording(button, targetInput);
+        }
+    }
+
+    /**
+     * Click to latch, or hold to talk.
+     *
+     * Both, because both are what people try. A quick tap starts recording and
+     * leaves it running until the next tap; pressing and holding records only
+     * for as long as the button is held, which is what a microphone button
+     * looks like it should do. `HOLD_MS` is what separates them, so a tap that
+     * happens to be slightly slow still latches rather than recording nothing.
+     *
+     * `click` is kept for the keyboard: Space and Enter on a focused button fire
+     * it without any pointer event, and a control that only answers to a mouse
+     * is a control some people cannot use.
+     */
+    function bindMic(button, targetInput) {
+        if (!button) { return; }
+
+        var pressedAt = 0;
+        var byPointer = false;
+
+        button.addEventListener('pointerdown', function () {
+            byPointer = true;
+
+            if (isRecording(button)) {
+                // Latched by an earlier tap; this press is the one that ends it.
+                pressedAt = 0;
+                stopRecording(button);
+                return;
+            }
+
+            pressedAt = Date.now();
+            startRecording(button, targetInput);
+        });
+
+        var release = function () {
+            if (!pressedAt) { return; }
+
+            var held = Date.now() - pressedAt;
+            pressedAt = 0;
+
+            if (held >= HOLD_MS) { stopRecording(button); }
+        };
+
+        button.addEventListener('pointerup', release);
+        button.addEventListener('pointercancel', release);
+        // Dragged off the button mid-hold. Treated as a release rather than a
+        // cancel, because the audio up to that point is what was said.
+        button.addEventListener('pointerleave', release);
+
+        button.addEventListener('click', function () {
+            if (byPointer) { byPointer = false; return; }
+            toggleRecording(button, targetInput);
         });
     }
 
@@ -583,22 +1210,44 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        $('ai-image-model').addEventListener('change', function () { renderControls(); refreshEstimates(); });
-        $('ai-text-model').addEventListener('change', refreshEstimates);
+        $('ai-image-model').addEventListener('change', function () {
+            renderControls();
+            refreshEstimates();
+            saveJobModels();
+        });
+        $('ai-text-model').addEventListener('change', function () {
+            refreshEstimates();
+            saveJobModels();
+        });
         $('ai-instruction').addEventListener('input', refreshEstimates);
 
         $('ai-send').addEventListener('click', submitInstruction);
-        $('ai-instruction').addEventListener('keydown', function (e) {
-            // Enter sends, Shift+Enter is a newline — a batch brief is often
-            // several lines, so the modifier has to mean something.
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitInstruction(); }
-        });
+        sendOnEnter($('ai-instruction'), submitInstruction);
+        sendOnEnter($('ai-reply-input'), sendReply);
 
-        $('ai-mic').addEventListener('click', function () { toggleRecording(this, $('ai-instruction')); });
-        $('ai-reply-mic').addEventListener('click', function () { toggleRecording(this, $('ai-reply-input')); });
+        // Voice is optional. When it is off the template renders none of
+        // these, so every binding here is conditional rather than assuming the
+        // element exists — `$()` would return null and the listener would
+        // throw on page load, taking the rest of the wiring with it.
+        var speakButton = $('ai-speak');
+
+        if (speakButton) {
+            speakButton.addEventListener('click', function () {
+                state.speak = !state.speak;
+                this.classList.toggle('is-on', state.speak);
+                this.setAttribute('aria-pressed', state.speak ? 'true' : 'false');
+
+                var icon = this.querySelector('i');
+                if (icon) { icon.className = 'fa ' + (state.speak ? 'fa-volume-up' : 'fa-volume-off'); }
+            });
+        }
+
+        bindMic($('ai-mic'), $('ai-instruction'));
+        bindMic($('ai-reply-mic'), $('ai-reply-input'));
 
         $('ai-new-job').addEventListener('click', function () {
             state.jobUuid = null;
+            state.job = null;
             clearTimeout(state.pollTimer);
             $('ai-job').hidden = true;
             $('ai-instruction').focus();
@@ -617,17 +1266,32 @@
             });
         });
 
-        $('ai-reply-send').addEventListener('click', function () {
-            var value = ($('ai-reply-input').value || '').trim();
-            if (!value) { return; }
-            api('POST', '/jobs/' + encodeURIComponent(state.jobUuid) + '/reply', { message: value })
-                .then(function (res) {
-                    if (!res.ok) { return; }
-                    $('ai-reply-input').value = '';
-                    state.pollDelay = 2000;
-                    renderJob(res.job);
-                    pollJob();
-                });
+        $('ai-reply-send').addEventListener('click', sendReply);
+
+        $('ai-browse').addEventListener('click', openFiles);
+        $('ai-files-close').addEventListener('click', closeFiles);
+
+        $('ai-files-up').addEventListener('click', function () {
+            if (state.files && state.files.parent !== null) { browse(state.files.parent); }
+        });
+
+        $('ai-files-use').addEventListener('click', function () {
+            // Guarded as well as hidden. This is the only path from browsing to
+            // changing where results go, and "looking at a file cannot move a
+            // task's output" is worth asserting rather than leaving to CSS.
+            if (!state.files || !state.filesPicking) { return; }
+            $('ai-folder').value = state.files.folder;
+            closeFiles();
+        });
+
+        // Clicking the backdrop, or Escape, closes it. Nothing here is being
+        // edited, so there is nothing to lose by dismissing it carelessly.
+        $('ai-files').addEventListener('click', function (event) {
+            if (event.target === $('ai-files')) { closeFiles(); }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && !$('ai-files').hidden) { closeFiles(); }
         });
 
         $('ai-key-save').addEventListener('click', function () { saveKey('user', $('ai-key-input').value.trim()); });

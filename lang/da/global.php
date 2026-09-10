@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Beskriv en batch billedarbejde; den udføres i baggrunden.',
+    'tagline' => 'Beskriv det billedarbejde, du har brug for; det udføres i baggrunden.',
     'denied' => 'Du har ikke tilladelse til at bruge AIMage.',
 
-    'new_job' => 'Ny batch',
-    'jobs' => 'Batches',
+    'new_job' => 'Ny opgave',
+    'jobs' => 'Opgaver',
     'no_jobs' => 'Ingenting endnu. Beskriv, hvad der skal gøres.',
     'instruction_placeholder' => 'f.eks. opskaler alle billeder i products/, eller generér 10 billeder af en bjergsø ved daggry',
     'send' => 'Send',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Billedmodel',
     'voice_model' => 'Dikteringsmodel',
     'output_folder' => 'Resultatmappe',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Størrelse',
+    'control_quality' => 'Kvalitet',
+    'control_background' => 'Baggrund',
+    'control_aspect_ratio' => 'Billedformat',
     'model_provider' => 'via :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Færdig',
     'status_failed' => 'Mislykkedes',
     'status_cancelled' => 'Annulleret',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'I kø',
+    'status_polling' => 'Venter',
+    'status_skipped' => 'Sprunget over',
 
     'approve' => 'Godkend og kør',
     'cancel_job' => 'Annullér',
@@ -62,6 +72,9 @@ return [
     'progress' => ':done ud af :total færdige',
     'failed_count' => ':n mislykkedes',
     'reply_placeholder' => 'Svar…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'Dig',
+    'turn_assistant' => 'Assistent',
 
     // Steps
     'step_generate' => 'Generér',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'Der er ikke konfigureret en API-nøgle til dig eller til dette websted.',
     'error_empty_instruction' => 'Sig, hvad der skal gøres.',
     'error_unknown_model' => 'Gatewayen tilbyder ingen :kind-model ved navn ":model".',
+    'error_model_cannot_continue' => '":model" kan ikke udføre det ":step"-arbejde, der allerede står i kø her.',
     'error_folder_denied' => 'Du må ikke skrive til ":folder".',
-    'error_job_not_found' => 'Den batch findes ikke, eller den er ikke din.',
-    'error_job_finished' => 'Den batch er allerede afsluttet.',
-    'error_not_awaiting_approval' => 'Den batch afventer ikke godkendelse.',
+    'error_job_not_found' => 'Den opgave findes ikke, eller den er ikke din.',
+    'error_job_finished' => 'Den opgave er allerede afsluttet.',
+    'error_not_awaiting_approval' => 'Den opgave venter ikke på godkendelse.',
     'error_key_from_config' => 'Webstedets nøgle er sat i konfigurationen og kan ikke ændres her.',
     'error_key_rejected' => 'Gatewayen afviste den nøgle.',
     'error_no_audio' => 'Der blev ikke modtaget nogen lyd.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'Der kunne ikke transskriberes noget fra den optagelse.',
     'error_empty_text' => 'Der er intet at læse højt.',
     'error_speech_disabled' => 'Oplæsning af svar er ikke konfigureret.',
+    'error_voice_disabled' => 'Taleinput og oplæsning er slået fra for dette websted.',
+
+    // The file browser.
+    'files_browse' => 'Gennemse…',
+    'files_title' => 'Filer',
+    'files_up' => 'Op',
+    'files_use_folder' => 'Læg resultater her',
+    'files_here' => 'Resultater havner her',
+    'files_empty' => 'Der er intet i denne mappe.',
+    'files_resolution' => 'Opløsning',
+    'files_bytes' => 'Størrelse',
+    'files_modified' => 'Ændret',
+    'files_url' => 'URL',
+    'files_copy' => 'Kopiér',
+    'files_copied' => 'Kopieret',
+    'files_unknown' => 'Ukendt',
+    'files_not_writable' => 'Resultater kan ikke skrives her.',
+    'files_close' => 'Luk',
+    'files_locate' => 'Vis, hvor filen ligger',
+    'error_file_not_found' => 'Det billede findes ikke, eller du må ikke se det.',
 ];

@@ -7,11 +7,11 @@ return [
 
     // Page furniture
     'title' => 'AIMage',
-    'tagline' => 'Descreva um lote de trabalho com imagens; é executado em segundo plano.',
+    'tagline' => 'Descreva o trabalho com imagens de que precisa; é executado em segundo plano.',
     'denied' => 'Não tem permissão para utilizar o AIMage.',
 
-    'new_job' => 'Novo lote',
-    'jobs' => 'Lotes',
+    'new_job' => 'Nova tarefa',
+    'jobs' => 'Tarefas',
     'no_jobs' => 'Ainda nada. Descreva o que quer que seja feito.',
     'instruction_placeholder' => 'ex.: ampliar todas as imagens em products/, ou gerar 10 imagens de um lago de montanha ao amanhecer',
     'send' => 'Enviar',
@@ -25,6 +25,12 @@ return [
     'image_model' => 'Modelo de imagem',
     'voice_model' => 'Modelo de ditado',
     'output_folder' => 'Pasta de resultados',
+    // Model-specific controls. The keys are the gateway's field names;
+    // these are only what a person reads above the picker.
+    'control_size' => 'Tamanho',
+    'control_quality' => 'Qualidade',
+    'control_background' => 'Fundo',
+    'control_aspect_ratio' => 'Proporção',
     'model_provider' => 'via :provider',
 
     // The two numbers the picker exists to show.
@@ -55,6 +61,10 @@ return [
     'status_succeeded' => 'Concluído',
     'status_failed' => 'Falhou',
     'status_cancelled' => 'Cancelado',
+    // Step states. `running`, `succeeded` and `failed` are shared with the job above.
+    'status_queued' => 'Em fila',
+    'status_polling' => 'À espera',
+    'status_skipped' => 'Ignorado',
 
     'approve' => 'Aprovar e executar',
     'cancel_job' => 'Cancelar',
@@ -62,6 +72,9 @@ return [
     'progress' => ':done de :total concluídos',
     'failed_count' => ':n falharam',
     'reply_placeholder' => 'Resposta…',
+    // Who said it, above each turn in the thread.
+    'turn_user' => 'Você',
+    'turn_assistant' => 'Assistente',
 
     // Steps
     'step_generate' => 'Gerar',
@@ -87,7 +100,7 @@ return [
     'key_cleared' => 'Chave removida.',
 
     // Batching health
-    'batching_unavailable' => 'O processamento em segundo plano está indisponível, por isso o trabalho não arrancará sozinho.',
+    'batching_unavailable' => 'O processamento em segundo plano está indisponível, por isso o trabalho não será executado sozinho.',
     'batching_not_registered' => 'O tipo de tarefa do AIMage não está registado nesta instalação do Evolution CMS.',
     'batching_scheduler_down' => 'O agendador não está a correr. Inicie-o com «php core/artisan schedule:work», ou '
         . 'faça o cron chamar «schedule:run» a cada minuto.',
@@ -97,10 +110,11 @@ return [
     'error_no_key' => 'Não está configurada nenhuma chave de API para si nem para este site.',
     'error_empty_instruction' => 'Diga o que quer que seja feito.',
     'error_unknown_model' => 'O gateway não oferece nenhum modelo :kind chamado «:model».',
+    'error_model_cannot_continue' => '«:model» não consegue realizar o trabalho «:step» já em fila aqui.',
     'error_folder_denied' => 'Não pode escrever em «:folder».',
-    'error_job_not_found' => 'Esse lote não existe, ou não é seu.',
-    'error_job_finished' => 'Esse lote já terminou.',
-    'error_not_awaiting_approval' => 'Esse lote não está à espera de aprovação.',
+    'error_job_not_found' => 'Essa tarefa não existe, ou não é sua.',
+    'error_job_finished' => 'Essa tarefa já terminou.',
+    'error_not_awaiting_approval' => 'Essa tarefa não está à espera de aprovação.',
     'error_key_from_config' => 'A chave do site está definida na configuração e não pode ser alterada aqui.',
     'error_key_rejected' => 'O gateway rejeitou essa chave.',
     'error_no_audio' => 'Não foi recebido áudio.',
@@ -109,4 +123,24 @@ return [
     'error_empty_transcript' => 'Não foi possível transcrever nada dessa gravação.',
     'error_empty_text' => 'Não há nada para ler em voz alta.',
     'error_speech_disabled' => 'A leitura das respostas em voz alta não está configurada.',
+    'error_voice_disabled' => 'A introdução por voz e a leitura em voz alta estão desativadas neste site.',
+
+    // The file browser.
+    'files_browse' => 'Navegar…',
+    'files_title' => 'Ficheiros',
+    'files_up' => 'Acima',
+    'files_use_folder' => 'Guardar resultados aqui',
+    'files_here' => 'Os resultados vão para aqui',
+    'files_empty' => 'Não há nada nesta pasta.',
+    'files_resolution' => 'Resolução',
+    'files_bytes' => 'Tamanho',
+    'files_modified' => 'Modificado',
+    'files_url' => 'URL',
+    'files_copy' => 'Copiar',
+    'files_copied' => 'Copiado',
+    'files_unknown' => 'Desconhecido',
+    'files_not_writable' => 'Não é possível escrever resultados aqui.',
+    'files_close' => 'Fechar',
+    'files_locate' => 'Mostrar onde está este ficheiro',
+    'error_file_not_found' => 'Essa imagem não existe, ou não a pode ver.',
 ];

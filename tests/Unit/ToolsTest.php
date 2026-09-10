@@ -418,3 +418,60 @@ test('an empty plan prices as nothing rather than as unknown', function () {
 
     expect(aimageTools($job)->estimatePlan()->amount)->toBeNull();
 });
+
+// ---------------------------------------------------------------------------
+// Destination folders that do not exist yet
+// ---------------------------------------------------------------------------
+
+test('a nested destination folder is queued as asked, without existing first', function () {
+    $job = aimageScopedJob();
+
+    // "put them in 123/45". Neither folder is there; the worker creates both
+    // when it writes the first result. Refusing here — or quietly substituting
+    // the default — is the failure this guards against.
+    $result = aimageTools($job)->dispatch(Tools::PLAN_GENERATE, [
+        'prompt' => 'a mountain lake',
+        'folder' => '123/45',
+    ]);
+
+    expect($result['content'])->not->toContain('may not write')
+        ->and(JobStep::query()->first()->param('folder'))->toBe('123/45');
+});
+
+test('an edit takes a nested destination folder too', function () {
+    $job = aimageScopedJob();
+    aimagePutImage('images/a.png');
+
+    aimageTools($job)->dispatch(Tools::PLAN_EDIT, [
+        'paths' => ['images/a.png'],
+        'prompt' => 'make the background transparent',
+        'folder' => '123/45',
+    ]);
+
+    expect(JobStep::query()->first()->param('folder'))->toBe('123/45');
+});
+
+test('a destination outside the write root is anchored back inside it', function () {
+    aimageUser(7, 1);
+    aimageSetFileRoot('');
+    AIMageTestCore::$config['rb_base_dir'] = '[(base_path)]assets/';
+    $job = aimageJob(['user_id' => 7, 'output_folder' => '']);
+
+    aimageTools($job)->dispatch(Tools::PLAN_GENERATE, ['prompt' => 'x', 'folder' => 'core/config']);
+
+    // Role 1 with the whole site as their file root could otherwise drop
+    // images into core/. The image browser root is the second ceiling.
+    expect(JobStep::query()->first()->param('folder'))->toBe('assets/images/core/config');
+});
+
+test('a destination that climbs out is refused rather than rewritten', function () {
+    $job = aimageScopedJob();
+
+    $result = aimageTools($job)->dispatch(Tools::PLAN_GENERATE, [
+        'prompt' => 'x',
+        'folder' => '../../etc',
+    ]);
+
+    expect($result['content'])->toContain('may not write to the folder')
+        ->and(JobStep::query()->count())->toBe(0);
+});
