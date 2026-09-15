@@ -37,6 +37,21 @@ return [
      * Hiding a button while the route it calls still answers is not a switch,
      * it is a decoration.
      */
+    /*
+    |--------------------------------------------------------------------------
+    | MCP (AI agents)
+    |--------------------------------------------------------------------------
+    |
+    | With evolution-cms/emcp installed, the workbench is offered to agents as
+    | aimage.* tools on the eMCP server named here. The agent acts as the manager
+    | whose token it holds: same permission, key, file scope and job ownership.
+    |
+    */
+    'mcp' => [
+        'enabled' => (bool) env('AIMAGE_MCP', true),
+        'server' => env('AIMAGE_MCP_SERVER', 'content'),
+    ],
+
     'features' => [
         /**
          * The microphone and the read-aloud button.

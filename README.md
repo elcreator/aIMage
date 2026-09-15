@@ -45,6 +45,24 @@ php artisan migrate
 
 Then open **AIMage** in the manager's Modules menu.
 
+## AI agents (MCP)
+
+With [evolution-cms/emcp](https://github.com/evolution-cms/evo-mcp) installed, the workbench is
+offered to agents such as Claude Code or Codex as `aimage.*` tools on eMCP's `content` server —
+no extra setup. The agent acts as the manager whose eMCP token it holds: same `aimage` permission,
+same key, same file scope, same job ownership; every tool is a proxy to the page's own endpoints.
+
+| Tool | What it does |
+|---|---|
+| `aimage.models`, `aimage.estimate` | catalogue with prices; cost before queuing |
+| `aimage.files`, `aimage.file_info` | what the manager may see |
+| `aimage.job.create` | a batch from a plain-language instruction — the planner (any text model) enhances prompts, asks back, estimates; the worker generates / edits / varies / upscales |
+| `aimage.job.show`, `aimage.jobs` | poll progress, read questions and results (paths + URLs) |
+| `aimage.job.reply`, `aimage.job.approve`, `aimage.job.models`, `aimage.job.cancel` | drive the job |
+
+Jobs need the scheduler running, exactly as on the page. Disable with `AIMAGE_MCP=false`; move to
+another eMCP server handle with `AIMAGE_MCP_SERVER`.
+
 ## Keys
 
 Three tiers, in order:
