@@ -179,6 +179,15 @@ src/
     ImageScope.php             session-free file access for one user
   Agent/                       planner (tool-calling loop) and step executor
   Models/                      Job, JobStep, Message
+  Services/Actor.php           the manager acted for: permission, key, ImageScope, job ownership
+  Services/Catalog.php         models, estimates, files
+  Services/Jobs.php            create / show / reply / approve / models / cancel, and the job shape
+  Services/Keys.php            saving a verified key
+  Services/WorkbenchException  one refusal shape: error code, translated message, HTTP status
+  Http/Controllers/*           thin: request -> service call -> JSON (Controller::respond)
+  Mcp/WorkbenchTool.php        base: an MCP tool that is one call into Services\*
+  Mcp/Tools/*                  aimage.* tools; WritesSite marks the mutating ones
+  Mcp/ToolProvider.php         registers them with eMCP's ToolRegistry when eMCP is installed
   Console/BatchHandler.php     one worker slice of one job
   Http/                        routes.php + controllers
 views/                         the module page (assets inlined; no publish step)

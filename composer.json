@@ -12,6 +12,9 @@
   "require-dev": {
     "pestphp/pest": "^4.0"
   },
+  "suggest": {
+    "evolution-cms/emcp": "Exposes the workbench to AI agents (aimage.* tools) via MCP"
+  },
   "autoload": {
     "psr-4": {
       "Elcreator\\aIMage\\": "src/"

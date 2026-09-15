@@ -35,12 +35,33 @@ class aIMageServiceProvider extends ServiceProvider
         }
 
         $this->registerManagerModule();
+        $this->registerMcpTools();
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 dirname(__DIR__) . '/public' => public_path('assets/modules/aimage'),
             ], 'public');
         }
+    }
+
+    /**
+     * Offer the workbench to AI agents when eMCP (evolution-cms/emcp) is installed.
+     *
+     * A soft dependency: the tool classes extend Laravel MCP's Tool, which only exists
+     * alongside eMCP, so nothing here is even autoloaded on a site without it.
+     */
+    protected function registerMcpTools(): void
+    {
+        if (!(bool) Config::get('mcp.enabled', true)) {
+            return;
+        }
+
+        $registry = 'EvolutionCMS\eMCP\Services\ToolRegistry';
+        if (!interface_exists('EvolutionCMS\eMCP\Contracts\ToolProvider') || !class_exists($registry)) {
+            return;
+        }
+
+        $this->app->make($registry)->register(new Mcp\ToolProvider());
     }
 
     /**

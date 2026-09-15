@@ -97,7 +97,7 @@ class PageController extends Controller
      */
     private function canManageSiteKey(): bool
     {
-        return (int) ($_SESSION['mgrRole'] ?? 0) === 1;
+        return $this->actor()->canManageSiteKey();
     }
 
     /**
