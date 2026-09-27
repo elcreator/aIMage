@@ -112,14 +112,49 @@ class Executor
         $body = array_filter([
             'model' => (string) $step->model,
             'prompt' => (string) $step->prompt,
-            'n' => $step->expectedImages(),
             'size' => $step->param('size'),
             'quality' => $step->param('quality'),
             'background' => $step->param('background'),
-            'aspect_ratio' => $step->param('aspect_ratio'),
-        ], static fn ($value) => $value !== null && $value !== '');
+            'options' => $this->options($step, $step->expectedImages()),
+        ] + $this->privacy(false), static fn ($value) => $value !== null && $value !== '' && $value !== []);
 
-        return $this->client->generateImage($body);
+        return $this->client->generateImage($body, $step->idempotencyKey());
+    }
+
+    /**
+     * The gateway's normalised options (feature 23): an aspect ratio every model
+     * understands, and `n` delivered by the gateway even where a model makes one
+     * image per call. Not strict: a model that can only approximate the ratio still
+     * draws, and the gateway lists what it changed in `warnings`, which the step keeps.
+     */
+    private function options(JobStep $step, int $n): array
+    {
+        $ratio = $step->param('aspect_ratio');
+        $options = ['n' => $n, 'strict' => false];
+        if (is_string($ratio) && preg_match('/^\s*(\d{1,4})\s*[:x]\s*(\d{1,4})\s*$/', $ratio, $m)) {
+            $options['aspectRatio'] = $m[1] . ':' . $m[2];
+        }
+
+        return $options;
+    }
+
+    /**
+     * Keep sources and results private at the gateway (`privacy.private`): a source
+     * never gets a public URL there, and a result comes back as a signed link that
+     * expires - which is fine, because `storeResults()` downloads it at once.
+     *
+     * @return array<string,array{private:bool}>
+     */
+    private function privacy(bool $hasInputs): array
+    {
+        if (!Config::privateAssets()) {
+            return [];
+        }
+
+        return array_filter([
+            'inputs' => $hasInputs ? ['private' => true] : null,
+            'outputs' => ['private' => true],
+        ]);
     }
 
     private function submitEdit(JobStep $step): array
@@ -134,8 +169,9 @@ class Executor
                 'size' => $step->param('size'),
                 'quality' => $step->param('quality'),
                 'background' => $step->param('background'),
-            ], static fn ($value) => $value !== null && $value !== ''),
-            [$image]
+            ] + $this->privacy(true), static fn ($value) => $value !== null && $value !== ''),
+            [$image],
+            $step->idempotencyKey()
         );
     }
 
@@ -149,35 +185,31 @@ class Executor
                 'n' => $step->expectedImages(),
                 'size' => $step->param('size'),
                 'prompt' => (string) $step->prompt,
-            ], static fn ($value) => $value !== null && $value !== ''),
-            [$image]
+            ] + $this->privacy(true), static fn ($value) => $value !== null && $value !== ''),
+            [$image],
+            $step->idempotencyKey()
         );
     }
 
     /**
-     * Upscaling is the one operation the gateway takes by URL rather than by
-     * upload, so the source has to be reachable from the internet.
-     *
-     * That is a real constraint, not an implementation detail: a site on
-     * localhost, behind HTTP auth, or with its file area outside the document
-     * root cannot be upscaled, and saying so plainly is better than a timeout
-     * from the provider twenty minutes later.
+     * Upscaling sends the file itself, like an edit. It used to take a URL the
+     * provider fetched, so a site on localhost, behind HTTP auth or with its files
+     * outside the web root could not upscale at all; the gateway now keeps the
+     * upload privately (a signed link for a URL-only provider, the bytes for one that
+     * takes them) and deletes it when the run finishes.
      */
     private function submitUpscale(JobStep $step): array
     {
-        $url = $this->scope->publicUrl((string) $step->source_path);
+        $image = $this->readSource($step);
 
-        if ($url === null) {
-            throw new GatewayException(
-                'This image has no public URL, and upscaling requires one the provider can fetch. '
-                . 'It is either outside the web root or the site is not publicly reachable.',
-                0,
-                false,
-                'NOT_PUBLICLY_REACHABLE'
-            );
-        }
-
-        return $this->client->upscale($url, (int) $step->param('scale', 2));
+        return $this->client->upscale(
+            array_filter([
+                'model' => (string) ($step->model ?: Config::upscaleModel()),
+                'scale' => (int) $step->param('scale', 2),
+            ] + $this->privacy(true), static fn ($value) => $value !== null && $value !== ''),
+            $image,
+            $step->idempotencyKey()
+        );
     }
 
     /**
@@ -229,7 +261,14 @@ class Executor
      */
     private function pollModelFor(JobStep $step): string
     {
-        return (string) $step->type === JobStep::TYPE_UPSCALE ? 'upscale' : (string) $step->model;
+        if ((string) $step->type !== JobStep::TYPE_UPSCALE) {
+            return (string) $step->model;
+        }
+        // The GoApi toolkit's tasks are polled under the literal `upscale`; any other
+        // upscaler that answers asynchronously is polled under its own name.
+        $model = (string) ($step->model ?: Config::upscaleModel());
+
+        return $model === ModelCatalog::UPSCALE_MODEL ? 'upscale' : $model;
     }
 
     // ------------------------------------------------------------------
@@ -283,10 +322,14 @@ class Executor
             return true;
         }
 
-        $step->markSucceeded($written[0], [
+        // How it was made (feature 24): model, vendor model id, input hashes, options,
+        // C2PA - kept with the step, next to the files it produced.
+        $step->markSucceeded($written[0], array_filter([
             'paths' => $written,
             'count' => count($written),
-        ]);
+            'provenance' => is_array($response['provenance'] ?? null) ? $response['provenance'] : null,
+            'warnings' => is_array($response['warnings'] ?? null) ? array_values($response['warnings']) : null,
+        ], static fn ($value) => $value !== null && $value !== []));
 
         return true;
     }
@@ -474,7 +517,9 @@ class Executor
         $maxAttempts = (int) Config::limit('max_attempts', 4);
 
         if ($e->retryable && (int) $step->attempt_count < $maxAttempts) {
-            $step->requeue('Retrying after: ' . $e->getMessage());
+            // The first call with this key is still running at the gateway: ask again
+            // with the same key, or the retry would become a second, paid task.
+            $step->requeue('Retrying after: ' . $e->getMessage(), $e->errorCode !== 'idempotency_in_progress');
 
             return;
         }

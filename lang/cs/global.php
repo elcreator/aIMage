@@ -143,4 +143,11 @@ return [
     'files_close' => 'Zavřít',
     'files_locate' => 'Ukázat, kde tento soubor je',
     'error_file_not_found' => 'Tento obrázek neexistuje nebo jej nemůžete vidět.',
+    'connect_button' => 'Připojit přes ai.artur.work',
+    'connect_site_button' => 'Připojit klíč pro celý web',
+    'connect_hint' => 'Přihlaste se tam a stiskněte Povolit: tento web získá vlastní klíč s měsíčním limitem útraty a nic se nemusí kopírovat.',
+    'connect_or_paste' => 'Nebo vložte klíč, který už máte:',
+    'connect_done' => 'Připojeno: klíč byl vytvořen, ověřen a uložen.',
+    'connect_denied' => 'Připojení nebylo povoleno, nic se tedy neuložilo.',
+    'connect_expired' => 'Tento pokus o připojení vypršel nebo nezačal zde. Zkuste to znovu.',
 ];

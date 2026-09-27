@@ -143,4 +143,11 @@ return [
     'files_close' => 'Stäng',
     'files_locate' => 'Visa var filen ligger',
     'error_file_not_found' => 'Den bilden finns inte, eller så får du inte se den.',
+    'connect_button' => 'Anslut med ai.artur.work',
+    'connect_site_button' => 'Anslut nyckeln för hela webbplatsen',
+    'connect_hint' => 'Logga in där och tryck Tillåt: webbplatsen får en egen nyckel med ett månatligt utgiftstak, och inget behöver kopieras.',
+    'connect_or_paste' => 'Eller klistra in en nyckel du redan har:',
+    'connect_done' => 'Ansluten: nyckeln skapades, kontrollerades och sparades.',
+    'connect_denied' => 'Anslutningen tilläts inte, så inget sparades.',
+    'connect_expired' => 'Anslutningsförsöket har gått ut eller startade inte här. Försök igen.',
 ];

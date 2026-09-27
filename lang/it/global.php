@@ -143,4 +143,11 @@ return [
     'files_close' => 'Chiudi',
     'files_locate' => 'Mostra dove si trova questo file',
     'error_file_not_found' => 'Quell’immagine non esiste, o non puoi vederla.',
+    'connect_button' => 'Connetti con ai.artur.work',
+    'connect_site_button' => 'Connetti la chiave per tutto il sito',
+    'connect_hint' => 'Accedi lì e premi Consenti: questo sito riceve una propria chiave con un tetto di spesa mensile e non c’è nulla da copiare.',
+    'connect_or_paste' => 'Oppure incolla una chiave che hai già:',
+    'connect_done' => 'Connesso: la chiave è stata creata, verificata e salvata.',
+    'connect_denied' => 'La connessione non è stata consentita, quindi non è stato salvato nulla.',
+    'connect_expired' => 'Questo tentativo di connessione è scaduto o non è partito da qui. Riprova.',
 ];

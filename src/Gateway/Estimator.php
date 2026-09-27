@@ -82,14 +82,15 @@ class Estimator
     }
 
     /**
-     * An upscale, which is priced against the fixed upstream model rather than
-     * whichever image model the manager has selected — `/images/upscale`
-     * ignores the model in the request.
+     * An upscale, priced against the configured upscaler (`defaults.upscale_model`)
+     * rather than whichever image model the manager has selected.
      */
     public function upscale(int $count = 1): Estimate
     {
-        return $this->image(ModelCatalog::UPSCALE_MODEL, $count)
-            ->withNotes(['Upscaling always runs on ' . ModelCatalog::UPSCALE_MODEL . '; the gateway fixes the model for this operation.']);
+        $model = \Elcreator\aIMage\Support\Config::upscaleModel();
+
+        return $this->image($model, $count)
+            ->withNotes(['Upscaling runs on ' . $model . ' (setting defaults.upscale_model), whichever image model is selected.']);
     }
 
     /**

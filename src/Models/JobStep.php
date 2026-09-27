@@ -118,6 +118,24 @@ class JobStep extends Model
         return max(1, (int) $this->param('n', 1));
     }
 
+    /**
+     * The `Idempotency-Key` this step's provider call is sent with.
+     *
+     * Stable for as long as the step is on the same attempt round, so a worker that
+     * dies between calling the gateway and recording the answer sends the same key
+     * again - and the gateway answers with the stored result (or the same async task)
+     * instead of generating, and charging, a second time. A deliberate retry after a
+     * transient failure (`requeue()`) moves to a new round, because the gateway does
+     * not store a 5xx and a stored 429 would otherwise be replayed for a day.
+     */
+    public function idempotencyKey(): string
+    {
+        $job = $this->job;
+        $uuid = $job !== null ? (string) $job->uuid : (string) $this->job_id;
+
+        return 'aimage-' . $uuid . '-' . (int) $this->id . '-r' . (int) $this->param('_round', 0);
+    }
+
     public function markRunning(): void
     {
         $this->forceFill([
@@ -179,9 +197,15 @@ class JobStep extends Model
      * A 400 will fail identically every time, and burning four attempts on it
      * only delays the message the manager needs to read.
      */
-    public function requeue(string $message): void
+    public function requeue(string $message, bool $newRound = true): void
     {
+        $params = $this->params();
+        if ($newRound) {
+            $params['_round'] = (int) ($params['_round'] ?? 0) + 1;
+        }
+
         $this->forceFill([
+            'params_json' => $params,
             'status' => self::STATUS_QUEUED,
             'provider_task_id' => '',
             'message' => mb_substr($message, 0, 500),

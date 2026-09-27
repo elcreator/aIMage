@@ -143,4 +143,11 @@ return [
     'files_close' => 'Sluiten',
     'files_locate' => 'Toon waar dit bestand staat',
     'error_file_not_found' => 'Die afbeelding bestaat niet, of u mag haar niet zien.',
+    'connect_button' => 'Verbinden met ai.artur.work',
+    'connect_site_button' => 'De sitebrede sleutel verbinden',
+    'connect_hint' => 'Meld u daar aan en druk op Toestaan: deze site krijgt een eigen sleutel met een maandelijks bestedingslimiet, en er hoeft niets gekopieerd te worden.',
+    'connect_or_paste' => 'Of plak een sleutel die u al hebt:',
+    'connect_done' => 'Verbonden: de sleutel is aangemaakt, gecontroleerd en opgeslagen.',
+    'connect_denied' => 'De verbinding werd niet toegestaan, dus er is niets opgeslagen.',
+    'connect_expired' => 'Deze verbindingspoging is verlopen of is hier niet gestart. Probeer het opnieuw.',
 ];

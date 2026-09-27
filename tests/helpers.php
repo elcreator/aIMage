@@ -408,6 +408,25 @@ function aimageClientWithout(array $responses): \Elcreator\aIMage\Gateway\Client
         new \GuzzleHttp\Client(["handler" => $stack, "http_errors" => false])
     );
 }
+/**
+ * A gateway client that also records every request it sends, for asserting on
+ * what left the site: headers, multipart fields, JSON bodies.
+ *
+ * @param array<int, \GuzzleHttp\Psr7\Response|\Throwable> $responses
+ * @param array<int, array{request: \Psr\Http\Message\RequestInterface}> $history filled in as requests go out
+ */
+function aimageRecordingClient(array $responses, array &$history): \Elcreator\aIMage\Gateway\Client
+{
+    $stack = \GuzzleHttp\HandlerStack::create(new \GuzzleHttp\Handler\MockHandler($responses));
+    $stack->push(\GuzzleHttp\Middleware::history($history));
+
+    return new \Elcreator\aIMage\Gateway\Client(
+        'test-key',
+        'https://ai.artur.work/api/v1',
+        new \GuzzleHttp\Client(['handler' => $stack, 'http_errors' => false])
+    );
+}
+
 /** A catalogue over the fixture snapshot, with no live network behind it. */
 function aimageCatalog(): \Elcreator\aIMage\Gateway\ModelCatalog
 {

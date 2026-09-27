@@ -53,3 +53,10 @@ Route::post('/voice/transcribe', [VoiceController::class, 'transcribe'])->name('
 Route::post('/voice/speak', [VoiceController::class, 'speak'])->name('aimage.voice.speak');
 
 Route::post('/settings/key', [SettingsController::class, 'saveKey'])->name('aimage.settings.key');
+
+// "Connect with ai.artur.work": no key to copy. `connect` sends the manager's browser
+// to the gateway's consent page (OAuth2 code + PKCE); the gateway sends it back to
+// `connect/callback`, where the code is traded for a key server-to-server. GET both
+// ways, because both are top-level browser navigations.
+Route::get('/connect', [SettingsController::class, 'connect'])->name('aimage.connect');
+Route::get('/connect/callback', [SettingsController::class, 'connectCallback'])->name('aimage.connect.callback');

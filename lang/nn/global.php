@@ -143,4 +143,11 @@ return [
     'files_close' => 'Lukk',
     'files_locate' => 'Vis kvar fila ligg',
     'error_file_not_found' => 'Det biletet finst ikkje, eller du får ikkje sjå det.',
+    'connect_button' => 'Kopla til ai.artur.work',
+    'connect_site_button' => 'Kopla til nøkkelen for heile nettstaden',
+    'connect_hint' => 'Logg inn der og trykk Tillat: nettstaden får sin eigen nøkkel med eit månadleg forbrukstak, og ingenting treng kopierast.',
+    'connect_or_paste' => 'Eller lim inn ein nøkkel du alt har:',
+    'connect_done' => 'Kopla til: nøkkelen vart laga, kontrollert og lagra.',
+    'connect_denied' => 'Tilkoplinga vart ikkje tillaten, så ingenting vart lagra.',
+    'connect_expired' => 'Dette tilkoplingsforsøket har gått ut eller starta ikkje her. Prøv igjen.',
 ];

@@ -171,8 +171,8 @@ class Tools
             ],
             [
                 'name' => self::PLAN_UPSCALE,
-                'description' => 'Queue an upscale of existing images. Upscaling always runs on '
-                    . ModelCatalog::UPSCALE_MODEL . ' regardless of the chosen image model.',
+                'description' => 'Queue an upscale of existing images. Upscaling runs on '
+                    . \Elcreator\aIMage\Support\Config::upscaleModel() . ' regardless of the chosen image model.',
                 'input_schema' => [
                     'type' => 'object',
                     'properties' => [
@@ -347,7 +347,7 @@ class Tools
         }
 
         $model = $type === JobStep::TYPE_UPSCALE
-            ? ModelCatalog::UPSCALE_MODEL
+            ? \Elcreator\aIMage\Support\Config::upscaleModel()
             : (string) $this->job->image_model;
 
         if ($type !== JobStep::TYPE_UPSCALE) {

@@ -28,11 +28,11 @@ class ModelCatalog
     public const ACTION_SPEAK = 'speakText';
 
     /**
-     * The model `/images/upscale` is fixed to upstream.
-     *
-     * The endpoint ignores whatever model the request names, so the price and
-     * latency the UI shows for an upscale must come from this entry and not
-     * from whichever image model the manager happens to have picked.
+     * The GoApi upscaler, the gateway's default for `/images/upscale`, whose async
+     * tasks are polled under the literal `upscale` segment. The model that actually
+     * runs is `Config::upscaleModel()`, and the price and latency the UI shows for an
+     * upscale come from that model's entry, not from whichever image model the
+     * manager happens to have picked.
      */
     public const UPSCALE_MODEL = 'Qubico/image-toolkit';
 

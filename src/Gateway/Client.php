@@ -90,9 +90,9 @@ class Client
      * a job here may hold hundreds of images, and holding an HTTP request open
      * for each is the thing the worker exists to avoid.
      */
-    public function generateImage(array $body): array
+    public function generateImage(array $body, ?string $idempotencyKey = null): array
     {
-        return $this->json('POST', 'images/generations', [RequestOptions::JSON => $body]);
+        return $this->json('POST', 'images/generations', [RequestOptions::JSON => $body], $idempotencyKey);
     }
 
     /**
@@ -100,11 +100,11 @@ class Client
      *
      * @param array<int,array{name?:string,contents:string,filename?:string}> $images
      */
-    public function editImage(array $fields, array $images): array
+    public function editImage(array $fields, array $images, ?string $idempotencyKey = null): array
     {
         return $this->json('POST', 'images/edits', [
             RequestOptions::MULTIPART => $this->multipart($fields, $images),
-        ]);
+        ], $idempotencyKey);
     }
 
     /**
@@ -116,29 +116,43 @@ class Client
      *
      * @param array<int,array{name?:string,contents:string,filename?:string}> $images
      */
-    public function variateImage(array $fields, array $images): array
+    public function variateImage(array $fields, array $images, ?string $idempotencyKey = null): array
     {
         return $this->json('POST', 'images/variations', [
             RequestOptions::MULTIPART => $this->multipart($fields, $images),
-        ]);
+        ], $idempotencyKey);
     }
 
     /**
-     * POST /images/upscale — gateway-specific, always asynchronous, and the
-     * model is fixed upstream to Qubico/image-toolkit rather than taken from
-     * the request. Poll with the literal segment `upscale` as the model.
+     * POST /images/upscale — gateway-specific. The image goes as a file, like an
+     * edit: the gateway keeps it privately and never publishes it, so a site on
+     * localhost or behind auth can upscale too. `model` picks the upscaler
+     * (Qubico/image-toolkit answers `{taskId}` - poll with the literal segment
+     * `upscale`; the Recraft upscalers answer at once).
      *
-     * It takes a URL, not an upload, so the image has to be publicly reachable
-     * — which is why Executor uploads a private source to the gateway first.
+     * @param array<string,mixed> $fields model, scale, inputs[private], outputs[private]
+     * @param array{name?:string,contents:string,filename?:string} $image
      */
-    public function upscale(string $imageUrl, int $scale = 2): array
+    public function upscale(array $fields, array $image, ?string $idempotencyKey = null): array
     {
         return $this->json('POST', 'images/upscale', [
-            RequestOptions::MULTIPART => [
-                ['name' => 'imageUrl', 'contents' => $imageUrl],
-                ['name' => 'scale', 'contents' => (string) $scale],
-            ],
-        ]);
+            RequestOptions::MULTIPART => $this->multipart($fields, [$image + ['name' => 'image']]),
+        ], $idempotencyKey);
+    }
+
+    /**
+     * GET /account — the balance and this key's cap. Authenticated, so it is also
+     * how a key is verified: a wrong, deleted or IP-restricted key fails here.
+     */
+    public function account(): array
+    {
+        return $this->json('GET', 'account');
+    }
+
+    /** GET /runs/{id} — state, charge and provenance of one run, for its owner. */
+    public function run(string $id): array
+    {
+        return $this->json('GET', 'runs/' . rawurlencode($id));
     }
 
     /**
@@ -215,7 +229,19 @@ class Client
             if ($value === null || $value === '') {
                 continue;
             }
-            $parts[] = ['name' => (string) $name, 'contents' => (string) $value];
+            if ($name === 'options' && is_array($value)) {
+                // Normalised options travel as one JSON string, which keeps lists intact.
+                $parts[] = ['name' => 'options', 'contents' => json_encode($value, JSON_UNESCAPED_SLASHES)];
+                continue;
+            }
+            if (is_array($value)) {
+                // inputs => [private => true] becomes inputs[private]=1.
+                foreach ($value as $key => $inner) {
+                    $parts[] = ['name' => $name . '[' . $key . ']', 'contents' => is_bool($inner) ? ($inner ? '1' : '0') : (string) $inner];
+                }
+                continue;
+            }
+            $parts[] = ['name' => (string) $name, 'contents' => is_bool($value) ? ($value ? '1' : '0') : (string) $value];
         }
 
         foreach ($files as $file) {
@@ -229,8 +255,16 @@ class Client
         return $parts;
     }
 
-    private function json(string $method, string $path, array $options = []): array
+    /**
+     * @param string|null $idempotencyKey sent as `Idempotency-Key`: the gateway answers a
+     *        repeat of the same request with the stored answer instead of running (and
+     *        charging) it again - what makes a step safe to run twice.
+     */
+    private function json(string $method, string $path, array $options = [], ?string $idempotencyKey = null): array
     {
+        if ($idempotencyKey !== null && $idempotencyKey !== '') {
+            $options[RequestOptions::HEADERS] = ($options[RequestOptions::HEADERS] ?? []) + ['Idempotency-Key' => $idempotencyKey];
+        }
         $response = $this->send($method, $path, $options);
         $raw = (string) $response->getBody();
         $decoded = json_decode($raw, true);

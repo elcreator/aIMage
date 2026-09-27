@@ -146,4 +146,11 @@ return [
     'files_close' => 'Close',
     'files_locate' => 'Show where this file is',
     'error_file_not_found' => 'That image does not exist, or you may not see it.',
+    'connect_button' => 'Connect with ai.artur.work',
+    'connect_site_button' => 'Connect the site-wide key',
+    'connect_hint' => 'Sign in there and press Allow: this site gets its own key with a monthly spending cap, and nothing has to be copied.',
+    'connect_or_paste' => 'Or paste a key you already have:',
+    'connect_done' => 'Connected: the key was created, verified and saved.',
+    'connect_denied' => 'The connection was not allowed, so nothing was saved.',
+    'connect_expired' => 'That connection attempt expired or did not start here. Try again.',
 ];

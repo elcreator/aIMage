@@ -143,4 +143,11 @@ return [
     'files_close' => '关闭',
     'files_locate' => '显示该文件的位置',
     'error_file_not_found' => '该图片不存在，或您无权查看。',
+    'connect_button' => '通过 ai.artur.work 连接',
+    'connect_site_button' => '连接全站密钥',
+    'connect_hint' => '在那里登录并点击“允许”：本站将获得自己的密钥，并带有每月消费上限，无需复制任何内容。',
+    'connect_or_paste' => '或粘贴您已有的密钥：',
+    'connect_done' => '已连接：密钥已创建、验证并保存。',
+    'connect_denied' => '连接未被允许，因此未保存任何内容。',
+    'connect_expired' => '此连接尝试已过期或并非从此处发起。请重试。',
 ];

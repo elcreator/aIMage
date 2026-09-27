@@ -143,4 +143,11 @@ return [
     'files_close' => '閉じる',
     'files_locate' => 'このファイルの場所を表示',
     'error_file_not_found' => 'その画像は存在しないか、閲覧できません。',
+    'connect_button' => 'ai.artur.work と接続',
+    'connect_site_button' => 'サイト共通キーを接続',
+    'connect_hint' => 'そこでサインインして「許可」を押すと、このサイト専用の月額上限付きキーが作成されます。コピーは不要です。',
+    'connect_or_paste' => 'または、既にお持ちのキーを貼り付けてください：',
+    'connect_done' => '接続しました：キーを作成・確認し、保存しました。',
+    'connect_denied' => '接続が許可されなかったため、何も保存されていません。',
+    'connect_expired' => 'この接続の試行は期限切れか、ここから開始されていません。もう一度お試しください。',
 ];

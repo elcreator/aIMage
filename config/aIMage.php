@@ -67,6 +67,11 @@ return [
     'defaults' => [
         /** The planner. Must be a model whose actions include respondChat. */
         'text_model' => env('AIMAGE_TEXT_MODEL', 'claude-sonnet-5'),
+        /**
+         * The upscaler. `Qubico/image-toolkit` (x2/x4), or `recraft-crisp-upscale` /
+         * `recraft-creative-upscale`, which receive the image bytes directly.
+         */
+        'upscale_model' => env('AIMAGE_UPSCALE_MODEL', 'Qubico/image-toolkit'),
         /** The generator. Must be a model whose actions include textToImage. */
         'image_model' => env('AIMAGE_IMAGE_MODEL', 'gpt-image-1'),
         /** Speech to text, for the microphone button. */
@@ -74,6 +79,17 @@ return [
         /** Text to speech, for reading answers back. Empty disables the feature. */
         'speech_model' => env('AIMAGE_SPEECH_MODEL', 'gpt-4o-mini-tts'),
         'speech_voice' => env('AIMAGE_SPEECH_VOICE', 'alloy'),
+    ],
+
+    'privacy' => [
+        /**
+         * Keep sources and results private at the gateway (docs: "Asset contract").
+         * Sources are sent as files and never get a public URL there; results come
+         * back as signed links that expire, which the worker downloads at once.
+         * Turn off only if something outside this package needs the gateway's
+         * public result URLs.
+         */
+        'private' => (bool) env('AIMAGE_PRIVATE', true),
     ],
 
     'limits' => [

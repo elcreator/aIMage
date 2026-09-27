@@ -143,4 +143,11 @@ return [
     'files_close' => 'Schließen',
     'files_locate' => 'Zeigen, wo diese Datei liegt',
     'error_file_not_found' => 'Dieses Bild existiert nicht oder Sie dürfen es nicht sehen.',
+    'connect_button' => 'Mit ai.artur.work verbinden',
+    'connect_site_button' => 'Den seitenweiten Schlüssel verbinden',
+    'connect_hint' => 'Melden Sie sich dort an und drücken Sie „Erlauben“: Diese Website erhält einen eigenen Schlüssel mit monatlichem Ausgabenlimit, und nichts muss kopiert werden.',
+    'connect_or_paste' => 'Oder fügen Sie einen vorhandenen Schlüssel ein:',
+    'connect_done' => 'Verbunden: Der Schlüssel wurde erstellt, geprüft und gespeichert.',
+    'connect_denied' => 'Die Verbindung wurde nicht erlaubt, daher wurde nichts gespeichert.',
+    'connect_expired' => 'Dieser Verbindungsversuch ist abgelaufen oder wurde nicht hier gestartet. Bitte erneut versuchen.',
 ];

@@ -32,7 +32,10 @@ header is shared with mesh worker tokens which resolve first, so we send `X-Api-
 | `POST /images/generations` | **JSON** | Sync → `{data:[{url}]}`; async → `{taskId}`. |
 | `POST /images/edits` | multipart | Every upload forwarded as an `image` part. |
 | `POST /images/variations` | multipart | OpenAI drops the form fields (no prompt upstream). |
-| `POST /images/upscale` | multipart | Model **fixed** to `Qubico/image-toolkit`. Takes `imageUrl`, so the source must be publicly reachable. Always async. |
+| `POST /images/upscale` | multipart | The **file itself** (`image`), like an edit - kept privately at the gateway, never published, deleted after the run. `model` = `defaults.upscale_model` (`Qubico/image-toolkit` async; `recraft-crisp-upscale` / `recraft-creative-upscale` answer at once). |
+| `GET /account` | — | Balance and this key's cap. **The key probe** (`/models` is public and would accept any string). |
+| `GET /runs/{id}` | — | State, charge and provenance of one run (run id or task id), owner only. |
+| `GET /connect` → `POST /connect/token` | browser / JSON | "Connect a site": OAuth2 code + PKCE S256. `Gateway\Connect`, `SettingsController::connect*`. |
 | `GET /images/status/{model}/{taskId}` | — | Use the literal `upscale` as `{model}` for upscale tasks. **Unfinished = 200 with an empty body**, not an error. |
 | `POST /audio/transcriptions` | multipart | webm/ogg transcoded upstream. |
 | `POST /audio/speech` | JSON | Answers **raw audio**, not JSON. |
@@ -51,6 +54,22 @@ header is shared with mesh worker tokens which resolve first, so we send `X-Api-
 3. **`price.amount` is null for token-metered models by design** (the length of an answer is
    the caller's choice) and `price.unit` says which kind an entry is. Null is *unknown*, not
    *free*, and `Estimate` keeps it null all the way to the UI.
+
+Every image request also carries:
+
+- **`options`** (generation): `{aspectRatio, n, strict: false}` - the gateway maps the ratio onto
+  each model and delivers `n` even where a model makes one image per call; what it could not do
+  exactly comes back in `warnings`, kept on the step.
+- **`inputs[private]` / `outputs[private]`** (`privacy.private`, on by default): a source never
+  gets a public URL at the gateway, and a result is a signed link with `expires_at` - which the
+  worker downloads at once, so nothing is lost.
+- **`Idempotency-Key: aimage-<job uuid>-<step id>-r<round>`** (`JobStep::idempotencyKey()`): a
+  worker that dies between the call and recording the answer sends the same key again and gets
+  the stored answer (or the same async task) - no second image, no second charge. `requeue()`
+  after a transient failure moves to a new round; `idempotency_in_progress` (409) keeps it.
+
+A finished result also carries `provenance` (run id, vendor model, input hashes, options, C2PA),
+stored in the step's `result_json` next to the files it produced.
 
 Never pass `?wait=1`. A job may hold hundreds of images; holding an HTTP request open per
 image is exactly what the worker exists to avoid.
@@ -229,7 +248,7 @@ Invariants to keep:
 
 ## Running the tests
 
-**137 tests, 318 assertions, all passing.** They are database-backed: a real SQLite schema
+**197 tests, all passing** (2026-09-27, against an Evolution CMS 3.5 core). They are database-backed: a real SQLite schema
 built by running this package's own migration, with the CMS tables it reads declared
 alongside.
 
@@ -263,7 +282,11 @@ no network at all.
 
 ## Build status
 
-**Feature-complete and tested.** 37 source files plus a 7-file suite (159 tests).
+**Feature-complete and tested.** 38 source files plus an 8-file suite (197 tests).
+`tests/Unit/GatewayAssetsTest.php` covers the gateway contract added on 2026-09-27: options,
+privacy flags, idempotency keys across a crash and a retry, provenance on the step, the
+file-based upscale, key verification through `/account`, and Connect (RFC 7636 vector,
+consent URL, code exchange and refusal).
 
 Covered: `ImageScope` (72 tests — the permission boundary, path safety, listing, writing),
 `ApiKeys` (15 — tiers, encryption at rest, masking), `Tools` (35 — planning, budget caps,
@@ -296,10 +319,9 @@ Remaining honest gaps:
   client is written to the OpenAPI spec and exercised only against mocks.
 - **The HTTP controllers are untested.** They need a booted manager session, which is
   integration territory rather than unit.
-- **Upscale needs a publicly reachable URL.** `/images/upscale` takes `imageUrl`, not an
-  upload, so a site on localhost or behind auth cannot upscale. `Executor::submitUpscale()`
-  fails the step with `NOT_PUBLICLY_REACHABLE` rather than letting it time out — a real
-  functional limit, not a bug to fix here.
+- **Connect needs the site's own host.** The gateway requires `redirect_uri` on the same host as
+  `site` (`site_url`), https unless it is localhost. A manager opening the module under another
+  host name than `site_url` gets the gateway's explanation instead of a key.
 - **Translations are machine-produced.** `lang/` carries every locale Evolution CMS core
   ships, each with the same 87 keys and the same placeholders,
   verified mechanically. They have not been reviewed by native speakers.

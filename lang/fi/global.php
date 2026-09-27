@@ -143,4 +143,11 @@ return [
     'files_close' => 'Sulje',
     'files_locate' => 'Näytä, missä tiedosto on',
     'error_file_not_found' => 'Kuvaa ei ole olemassa, tai et saa nähdä sitä.',
+    'connect_button' => 'Yhdistä ai.artur.workiin',
+    'connect_site_button' => 'Yhdistä koko sivuston avain',
+    'connect_hint' => 'Kirjaudu sisään siellä ja paina Salli: sivusto saa oman avaimen kuukausittaisella kulukatolla, eikä mitään tarvitse kopioida.',
+    'connect_or_paste' => 'Tai liitä jo olemassa oleva avain:',
+    'connect_done' => 'Yhdistetty: avain luotiin, tarkistettiin ja tallennettiin.',
+    'connect_denied' => 'Yhteyttä ei sallittu, joten mitään ei tallennettu.',
+    'connect_expired' => 'Yhdistämisyritys vanheni tai ei alkanut täältä. Yritä uudelleen.',
 ];

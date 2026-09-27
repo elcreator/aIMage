@@ -30,6 +30,9 @@
             <p class="ai-sub">{{ __('aIMage::global.tagline') }}</p>
         </div>
         <div class="ai-head-state" id="ai-key-state"></div>
+        @if (request()->query('connected') || request()->query('connect_failed'))
+            <p class="ai-msg {{ request()->query('connected') ? 'is-ok' : 'is-error' }}" id="ai-connect-msg" role="status">{{ (string) request()->query('message', '') }}</p>
+        @endif
     </header>
 
     {{-- Batching health. Shown only when something is actually wrong, because
@@ -59,6 +62,24 @@
             '<a href="https://ai.artur.work/profile" target="_blank">ai.artur.work</a>',
             e(__('aIMage::global.key_needed_body'))
         ) !!}</p>
+
+        {{-- "Connect with ai.artur.work": the gateway creates a key for this site with a
+             monthly cap once its owner presses Allow; nothing is copied. Top-level
+             navigation, because the consent page cannot be framed. --}}
+        <div class="ai-connect" id="ai-connect">
+            <div class="ai-row">
+                <a class="ai-btn ai-btn-primary" id="ai-connect-user" href="{{ route('aimage.connect') }}" target="_top">
+                    {{ __('aIMage::global.connect_button') }}
+                </a>
+                @if ($canManageSiteKey && !$keyState['site_key_from_config'])
+                    <a class="ai-btn" id="ai-connect-site" href="{{ route('aimage.connect', ['scope' => 'site']) }}" target="_top">
+                        {{ __('aIMage::global.connect_site_button') }}
+                    </a>
+                @endif
+            </div>
+            <p class="ai-hint">{{ __('aIMage::global.connect_hint') }}</p>
+            <p class="ai-hint">{{ __('aIMage::global.connect_or_paste') }}</p>
+        </div>
 
         <div class="ai-key-form">
             <label for="ai-key-input">{{ __('aIMage::global.key_your_own') }}</label>

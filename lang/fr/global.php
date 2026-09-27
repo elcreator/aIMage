@@ -143,4 +143,11 @@ return [
     'files_close' => 'Fermer',
     'files_locate' => 'Montrer où se trouve ce fichier',
     'error_file_not_found' => 'Cette image n’existe pas, ou vous n’avez pas le droit de la voir.',
+    'connect_button' => 'Se connecter avec ai.artur.work',
+    'connect_site_button' => 'Connecter la clé de tout le site',
+    'connect_hint' => 'Connectez-vous là-bas et appuyez sur Autoriser : ce site obtient sa propre clé avec un plafond de dépenses mensuel, et rien n’est à copier.',
+    'connect_or_paste' => 'Ou collez une clé que vous avez déjà :',
+    'connect_done' => 'Connecté : la clé a été créée, vérifiée et enregistrée.',
+    'connect_denied' => 'La connexion n’a pas été autorisée, rien n’a donc été enregistré.',
+    'connect_expired' => 'Cette tentative de connexion a expiré ou n’a pas commencé ici. Réessayez.',
 ];

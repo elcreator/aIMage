@@ -143,4 +143,11 @@ return [
     'files_close' => 'Bağla',
     'files_locate' => 'Bu faylın harada olduğunu göstər',
     'error_file_not_found' => 'Bu şəkil mövcud deyil və ya siz onu görə bilməzsiniz.',
+    'connect_button' => 'ai.artur.work ilə qoşul',
+    'connect_site_button' => 'Sayt üzrə açarı qoşun',
+    'connect_hint' => 'Orada daxil olun və İcazə ver düyməsini basın: bu sayt aylıq xərc limiti olan öz açarını alır və heç nə kopyalamaq lazım deyil.',
+    'connect_or_paste' => 'Və ya artıq olan açarı yapışdırın:',
+    'connect_done' => 'Qoşuldu: açar yaradıldı, yoxlanıldı və saxlanıldı.',
+    'connect_denied' => 'Qoşulmaya icazə verilmədi, ona görə də heç nə saxlanılmadı.',
+    'connect_expired' => 'Bu qoşulma cəhdinin vaxtı bitib və ya burada başlamayıb. Yenidən cəhd edin.',
 ];

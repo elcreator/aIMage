@@ -228,28 +228,43 @@ test('a source that has vanished fails the step without retrying', function () {
         ->and($step->error_code)->toBe('SOURCE_UNAVAILABLE');
 });
 
-test('an upscale with no public URL fails with a reason a person can act on', function () {
+test('an upscale sends the file itself, privately, so a site nobody can reach still upscales', function () {
     aimageUser(7, 1);
-    // A file root outside the web root: nothing under it has a URL.
+    // A file root outside the web root: nothing under it has a public URL - which
+    // used to make upscaling impossible, because the gateway took only a URL.
     aimageSetFileRoot('assets');
-    AIMageTestCore::$config['site_url'] = 'https://example.test/';
+    aimagePutImage('private/product.png');
 
     $job = aimageJob(['user_id' => 7, 'status' => Job::STATUS_RUNNING]);
-
     $step = aimageStep($job, [
         'type' => JobStep::TYPE_UPSCALE,
-        'source_path' => '../outside.png',
-        'params_json' => ['scale' => 2, 'folder' => 'aimage'],
+        'model' => '',
+        'source_path' => 'private/product.png',
+        'params_json' => ['scale' => 4, 'folder' => 'aimage'],
     ]);
 
-    $executor = new Executor(aimageClientWithout([]), ImageScope::forUser(7), aimageDownloader([]));
+    $history = [];
+    $executor = new Executor(
+        aimageRecordingClient([aimageJsonResponse(['taskId' => 'up-1'])], $history),
+        ImageScope::forUser(7),
+        aimageDownloader([])
+    );
 
     $executor->advance($job, $step);
     $step->refresh();
 
-    expect($step->status)->toBe(JobStep::STATUS_FAILED)
-        ->and($step->error_code)->toBe('NOT_PUBLICLY_REACHABLE')
-        ->and($step->message)->toContain('public URL');
+    $request = $history[0]['request'];
+    $body = (string) $request->getBody();
+    expect($step->status)->toBe(JobStep::STATUS_POLLING)
+        ->and($step->provider_model)->toBe('upscale')
+        ->and((string) $request->getUri())->toEndWith('images/upscale')
+        ->and($body)->toContain('name="image"')
+        ->and($body)->toContain(aimagePng())
+        ->and($body)->not->toContain('imageUrl')
+        ->and($body)->toContain('name="inputs[private]"')
+        ->and($body)->toContain('name="outputs[private]"')
+        ->and($body)->toContain('Qubico/image-toolkit')
+        ->and($request->getHeaderLine('Idempotency-Key'))->toBe($step->idempotencyKey());
 });
 
 test('a result that cannot be written fails the step rather than being lost quietly', function () {

@@ -143,4 +143,11 @@ return [
     'files_close' => 'Luk',
     'files_locate' => 'Vis, hvor filen ligger',
     'error_file_not_found' => 'Det billede findes ikke, eller du må ikke se det.',
+    'connect_button' => 'Forbind med ai.artur.work',
+    'connect_site_button' => 'Forbind nøglen for hele webstedet',
+    'connect_hint' => 'Log ind der og tryk Tillad: webstedet får sin egen nøgle med et månedligt forbrugsloft, og intet skal kopieres.',
+    'connect_or_paste' => 'Eller indsæt en nøgle, du allerede har:',
+    'connect_done' => 'Forbundet: nøglen blev oprettet, bekræftet og gemt.',
+    'connect_denied' => 'Forbindelsen blev ikke tilladt, så intet blev gemt.',
+    'connect_expired' => 'Forsøget på at forbinde er udløbet eller startede ikke her. Prøv igen.',
 ];

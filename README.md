@@ -65,6 +65,12 @@ another eMCP server handle with `AIMAGE_MCP_SERVER`.
 
 ## Keys
 
+The easy way: **Connect with ai.artur.work** on the key panel. The manager signs in there and
+presses Allow; the gateway creates a key just for this site, with a monthly spending cap, and
+hands it back server-to-server (OAuth2 code + PKCE) - nothing is copied or pasted, and the key
+never passes through the browser. An administrator can connect the site-wide key the same way.
+Pasting a key by hand still works.
+
 Three tiers, in order:
 
 1. **The manager's own key** — set on the page, stored encrypted in `user_settings`.
@@ -155,6 +161,19 @@ environment turns them on, as does `features.voice` in the site's settings. Off,
 not rendered and `/voice/transcribe` and `/voice/speak` refuse — a flag that only hides a button
 while its endpoint still answers is a decoration, not a switch.
 
+## Privacy, retries and provenance
+
+- **Nothing you send becomes public.** Edits, variations and upscales send the image itself;
+  the gateway keeps it privately and deletes it after the run. Results come back as private,
+  expiring links that the worker downloads immediately (`privacy.private`, on by default).
+  Upscaling therefore works on localhost and behind HTTP auth too.
+- **A step is never paid twice.** Each step's call carries its own `Idempotency-Key`, so a
+  worker that dies mid-call and runs the step again gets the stored answer.
+- **Every result says how it was made** - run id, vendor model, input hashes, options, C2PA -
+  kept with the step (`result_json.provenance`).
+- `defaults.upscale_model` (`AIMAGE_UPSCALE_MODEL`) picks the upscaler: `Qubico/image-toolkit`
+  (x2/x4), `recraft-crisp-upscale` (fast, cheap) or `recraft-creative-upscale`.
+
 ## Design notes
 
 See [`AGENTS.md`](AGENTS.md) for the full picture. The three things most likely to be
@@ -172,9 +191,8 @@ misunderstood:
 
 ## Known limits
 
-- **Upscaling needs a publicly reachable URL.** `/images/upscale` takes `imageUrl`, not an
-  upload, so a site on localhost or behind HTTP auth cannot upscale. The step fails with
-  `NOT_PUBLICLY_REACHABLE` rather than timing out.
+- **Connect needs the site's own host.** The gateway only returns a key to the host in
+  `site_url` (https, or http on localhost).
 - **Translations are machine-produced.** Every language Evolution CMS core carries is
   present — but none has been reviewed by a native speaker.
 

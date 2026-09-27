@@ -39,6 +39,36 @@ final class Config
     }
 
     /** The site-wide fallback key, or null when the operator has not set one. */
+    /**
+     * The gateway's site root, where `/connect` lives: the API base without its
+     * `/api/v1` or `/v1` suffix.
+     */
+    public static function gatewaySiteUrl(): string
+    {
+        return (string) preg_replace('#/(api/)?v1$#', '', static::baseUrl());
+    }
+
+    /**
+     * The model `/images/upscale` runs on. `Qubico/image-toolkit` (x2/x4) by default;
+     * `recraft-crisp-upscale` / `recraft-creative-upscale` receive the file itself.
+     */
+    public static function upscaleModel(): string
+    {
+        $model = trim((string) static::get('defaults.upscale_model', ''));
+
+        return $model !== '' ? $model : 'Qubico/image-toolkit';
+    }
+
+    /**
+     * Whether source images and results stay private at the gateway: sources never get
+     * a public URL there, and results come back as signed links that expire. On by
+     * default - the worker imports every result at once, so nothing is lost.
+     */
+    public static function privateAssets(): bool
+    {
+        return (bool) static::get('privacy.private', true);
+    }
+
     public static function siteKey(): ?string
     {
         $key = trim((string) static::get('gateway.key', ''));

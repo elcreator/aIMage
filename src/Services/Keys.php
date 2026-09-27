@@ -55,16 +55,16 @@ final class Keys
     /**
      * Try the key against the gateway.
      *
-     * `GET /models` is the probe: it is the cheapest authenticated call the
-     * gateway has, it costs nothing, and a key pinned to an IP range fails
-     * here — which is exactly the failure worth catching at save time.
+     * `GET /account` is the probe: it needs the key (unlike `/models`, which is
+     * public and would accept any string), it costs nothing, and a key pinned to
+     * an IP range fails here — exactly the failure worth catching at save time.
      *
      * @throws WorkbenchException
      */
     private function verify(string $key): void
     {
         try {
-            (new Client($key))->models(['model' => 'gpt-image-1']);
+            (new Client($key))->account();
         } catch (GatewayException $e) {
             if ($e->isAuthFailure()) {
                 throw new WorkbenchException('key_rejected', __('aIMage::global.error_key_rejected'), 403);
