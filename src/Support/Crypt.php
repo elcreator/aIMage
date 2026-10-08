@@ -74,16 +74,95 @@ final class Crypt
             return null;
         }
 
-        $plaintext = openssl_decrypt(
-            substr($raw, 28),
-            self::CIPHER,
-            self::secret(),
-            OPENSSL_RAW_DATA,
-            substr($raw, 0, 12),
-            substr($raw, 12, 16)
-        );
+        foreach (array_merge([self::secret()], self::previousSecrets()) as $secret) {
+            $plaintext = self::open($raw, $secret);
+
+            if ($plaintext !== null) {
+                return $plaintext;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Is this value readable only with an OLD secret?
+     *
+     * That is the signature of a rotation or a move (file secret -> `AIMAGE_SECRET`,
+     * or a new `AIMAGE_SECRET` with the old one in `AIMAGE_SECRET_PREVIOUS`): the key
+     * is still good, it just should be written again under the secret now in force.
+     * Nobody has to know a secret for that to happen - see ApiKeys.
+     */
+    public static function needsRotation(?string $value): bool
+    {
+        $value = trim((string) $value);
+
+        if (!str_starts_with($value, self::PREFIX)) {
+            return false;
+        }
+
+        $raw = base64_decode(substr($value, strlen(self::PREFIX)), true);
+
+        if ($raw === false || strlen($raw) < 29 || self::open($raw, self::secret()) !== null) {
+            return false;
+        }
+
+        foreach (self::previousSecrets() as $secret) {
+            if (self::open($raw, $secret) !== null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Forget the memoised secrets (a test, or a long-running worker after the environment changed). */
+    public static function flush(): void
+    {
+        self::$secret = null;
+    }
+
+    private static function open(string $raw, string $secret): ?string
+    {
+        $plaintext = openssl_decrypt(substr($raw, 28), self::CIPHER, $secret, OPENSSL_RAW_DATA, substr($raw, 0, 12), substr($raw, 12, 16));
 
         return $plaintext === false ? null : $plaintext;
+    }
+
+    /**
+     * The secrets that used to be in force, newest first, as 32-byte keys:
+     *
+     * - `AIMAGE_SECRET_PREVIOUS`, comma-separated, for a deliberate rotation;
+     * - the generated `core/custom/aimage.secret`, when `AIMAGE_SECRET` has since taken over.
+     *   The person who sets the variable usually never knew the file existed, and
+     *   should not have to: their saved keys keep working and are rewritten on first use.
+     *
+     * Read-only - this never creates the file.
+     *
+     * @return string[]
+     */
+    private static function previousSecrets(): array
+    {
+        $secrets = [];
+
+        foreach (preg_split('/[\s,]+/', (string) getenv('AIMAGE_SECRET_PREVIOUS'), -1, PREG_SPLIT_NO_EMPTY) ?: [] as $old) {
+            $secrets[] = hash('sha256', $old, true);
+        }
+
+        if (trim((string) (getenv('AIMAGE_SECRET') ?: '')) !== '') {
+            $file = self::secretFile();
+
+            if (is_file($file) && trim((string) file_get_contents($file)) !== '') {
+                $secrets[] = hash('sha256', trim((string) file_get_contents($file)), true);
+            }
+        }
+
+        return array_values(array_unique($secrets));
+    }
+
+    private static function secretFile(): string
+    {
+        return (defined('EVO_CORE_PATH') ? rtrim(EVO_CORE_PATH, '/\\') . '/custom' : sys_get_temp_dir()) . '/aimage.secret';
     }
 
     /** Whether a stored value is one of ours, for migration and diagnostics. */
@@ -119,11 +198,8 @@ final class Crypt
      */
     private static function fileSecret(): string
     {
-        $dir = defined('EVO_CORE_PATH')
-            ? rtrim(EVO_CORE_PATH, '/\\') . '/custom'
-            : sys_get_temp_dir();
-
-        $file = $dir . '/aimage.secret';
+        $file = self::secretFile();
+        $dir = dirname($file);
 
         if (is_file($file)) {
             $secret = trim((string) file_get_contents($file));

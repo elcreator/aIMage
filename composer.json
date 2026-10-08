@@ -13,7 +13,8 @@
     "pestphp/pest": "^4.0"
   },
   "suggest": {
-    "evolution-cms/emcp": "Exposes the workbench to AI agents (aimage.* tools) via MCP"
+    "evolution-cms/emcp": "Exposes the workbench to AI agents (aimage.* tools) via MCP",
+    "seiger/sgallery": "Lets results be attached to a document's gallery and alt text be written into it"
   },
   "autoload": {
     "psr-4": {

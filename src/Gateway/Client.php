@@ -149,6 +149,32 @@ class Client
         return $this->json('GET', 'account');
     }
 
+    /**
+     * POST /uploads - keep one image privately at the gateway for 24 hours and get its id,
+     * which is how `/images/analyze` is told which image to look at (it never fetches a
+     * URL the caller picks).
+     *
+     * @param array{name?: string, contents: string, filename: string} $image
+     * @return array{id: string}
+     */
+    public function upload(array $image): array
+    {
+        return $this->json('POST', 'uploads', [
+            RequestOptions::MULTIPART => $this->multipart([], [$image + ['name' => 'image']]),
+        ]);
+    }
+
+    /**
+     * POST /images/analyze - alt text, colours and a focal point (and, from a trusted
+     * rig, text and a moderation score) for one image of ours.
+     *
+     * @param array{upload: string, want?: string[], lang?: string, context?: string} $body
+     */
+    public function analyzeImage(array $body, ?string $idempotencyKey = null): array
+    {
+        return $this->json('POST', 'images/analyze', [RequestOptions::JSON => $body], $idempotencyKey);
+    }
+
     /** GET /runs/{id} — state, charge and provenance of one run, for its owner. */
     public function run(string $id): array
     {

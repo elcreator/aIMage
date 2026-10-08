@@ -242,7 +242,7 @@ final class Jobs
             $pending = JobStep::query()
                 ->where('job_id', $job->getKey())
                 ->where('status', JobStep::STATUS_QUEUED)
-                ->where('type', '!=', JobStep::TYPE_UPSCALE)
+                ->whereNotIn('type', [JobStep::TYPE_UPSCALE, JobStep::TYPE_DESCRIBE])
                 ->get();
 
             foreach ($pending as $step) {
@@ -269,7 +269,7 @@ final class Jobs
                     // paid for on the model it ran on, and rewriting its model
                     // would misreport what produced the image on disk.
                     ->where('status', JobStep::STATUS_QUEUED)
-                    ->where('type', '!=', JobStep::TYPE_UPSCALE)
+                    ->whereNotIn('type', [JobStep::TYPE_UPSCALE, JobStep::TYPE_DESCRIBE])
                     ->update(['model' => $changes['image_model'], 'updated_at' => now()]);
             }
         }
@@ -347,6 +347,9 @@ final class Jobs
                     'message' => (string) $step->message,
                     'error_code' => (string) $step->error_code,
                     'attempts' => (int) $step->attempt_count,
+                    // Alt text, colours and focal point of an analysis step; null for the rest.
+                    'gallery' => is_array($step->result_json['gallery'] ?? null) ? $step->result_json['gallery'] : null,
+                    'analysis' => is_array($step->result_json['analysis'] ?? null) ? $step->result_json['analysis'] : null,
                 ];
             })
             ->all();

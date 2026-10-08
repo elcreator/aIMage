@@ -29,11 +29,18 @@
             <h1>{{ __('aIMage::global.title') }}</h1>
             <p class="ai-sub">{{ __('aIMage::global.tagline') }}</p>
         </div>
-        <div class="ai-head-state" id="ai-key-state"></div>
+        <div class="ai-head-state"><div id="ai-key-state"></div><div id="ai-balance" hidden></div></div>
         @if (request()->query('connected') || request()->query('connect_failed'))
             <p class="ai-msg {{ request()->query('connected') ? 'is-ok' : 'is-error' }}" id="ai-connect-msg" role="status">{{ (string) request()->query('message', '') }}</p>
         @endif
     </header>
+
+    {{-- The money behind the key. Hidden until /account answers; a zero balance or a
+         reached cap becomes a prompt with the way to fix it, not a failed step later. --}}
+    <div class="ai-alert ai-alert-warn" id="ai-balance-alert" hidden>
+        <span id="ai-balance-alert-text"></span>
+        <a class="ai-btn ai-btn-primary" id="ai-topup" href="#" target="_blank" rel="noopener"></a>
+    </div>
 
     {{-- Batching health. Shown only when something is actually wrong, because
          a permanent green banner is a banner nobody reads. --}}
@@ -66,6 +73,10 @@
         {{-- "Connect with ai.artur.work": the gateway creates a key for this site with a
              monthly cap once its owner presses Allow; nothing is copied. Top-level
              navigation, because the consent page cannot be framed. --}}
+        @if (!empty($keyState['unreadable']['own']) || !empty($keyState['unreadable']['site']))
+            <p class="ai-msg is-error" id="ai-key-unreadable" role="alert">{{ __('aIMage::global.key_unreadable') }}</p>
+        @endif
+
         <div class="ai-connect" id="ai-connect">
             <div class="ai-row">
                 <a class="ai-btn ai-btn-primary" id="ai-connect-user" href="{{ route('aimage.connect') }}" target="_top">
@@ -253,6 +264,7 @@
         'baseUrl' => $baseUrl,
         'csrf' => $csrfToken,
         'key' => $keyState,
+        'topUpUrl' => $topUpUrl,
         'defaults' => $defaults,
         'limits' => $limits,
         'scope' => $scope,
@@ -297,6 +309,22 @@
             'no_jobs' => __('aIMage::global.no_jobs'),
             'key_using_own' => __('aIMage::global.key_using_own'),
             'key_using_site' => __('aIMage::global.key_using_site'),
+            'balance' => __('aIMage::global.balance'),
+            'top_up' => __('aIMage::global.top_up'),
+            'balance_empty' => __('aIMage::global.balance_empty'),
+            'balance_low' => __('aIMage::global.balance_low'),
+            'cap_reached' => __('aIMage::global.cap_reached'),
+            'error_insufficient_balance' => __('aIMage::global.error_insufficient_balance'),
+            'error_key_cap_reached' => __('aIMage::global.error_key_cap_reached'),
+            'gallery_added' => __('aIMage::global.gallery_added'),
+            'gallery_alt_saved' => __('aIMage::global.gallery_alt_saved'),
+            'gallery_alt_kept' => __('aIMage::global.gallery_alt_kept'),
+            'gallery_alt_none' => __('aIMage::global.gallery_alt_none'),
+            'gallery_failed' => __('aIMage::global.gallery_failed'),
+            'analysis_alt' => __('aIMage::global.analysis_alt'),
+            'analysis_colors' => __('aIMage::global.analysis_colors'),
+            'analysis_focal' => __('aIMage::global.analysis_focal'),
+            'analysis_missing' => __('aIMage::global.analysis_missing'),
             'key_saved' => __('aIMage::global.key_saved'),
             'key_cleared' => __('aIMage::global.key_cleared'),
             'recording' => __('aIMage::global.recording'),

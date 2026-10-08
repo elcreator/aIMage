@@ -3,6 +3,7 @@
 namespace Elcreator\aIMage\Http\Controllers;
 
 use Elcreator\aIMage\Console\BatchHandler;
+use Elcreator\aIMage\Services\Account;
 use Elcreator\aIMage\Support\Config;
 use EvolutionCMS\Services\SystemTasks\SystemTaskRegistry;
 use Illuminate\Contracts\View\View;
@@ -41,6 +42,7 @@ class PageController extends Controller
             'iconsUrl' => $this->managerAsset('style/common/font-awesome/css/font-awesome.min.css'),
             'csrfToken' => csrf_token(),
             'keyState' => $this->keyState(),
+            'topUpUrl' => Account::fallbackTopUpUrl(),
             'canManageSiteKey' => $this->canManageSiteKey(),
             // Optional parts of the workbench. The template omits their
             // controls entirely rather than hiding them, so nothing is

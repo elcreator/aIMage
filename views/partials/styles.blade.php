@@ -124,6 +124,12 @@
     .ai-key-site { padding-top: 0.75rem; border-top: 1px dashed var(--ai-border); }
     .ai-hint, .ai-msg { color: var(--ai-muted); font-size: 0.82rem; margin: 0.4rem 0 0; min-height: 1.1em; }
     .ai-msg.is-error { color: var(--ai-danger); }
+    .ai-analysis { display: grid; gap: 0.4rem; padding: 0.6rem 0.2rem 0; font-size: 0.88rem; }
+    .ai-analysis-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+    .ai-analysis-alt { flex: 1 1 14rem; }
+    .ai-swatch { display: inline-block; width: 1.4rem; height: 1.4rem; border-radius: 4px; border: 1px solid rgba(0, 0, 0, 0.2); }
+    .ai-focal-dot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+        border: 2px solid #fff; background: var(--ai-accent); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); pointer-events: none; }
     .ai-msg.is-ok { color: var(--ai-ok); }
 
     .ai-job-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }

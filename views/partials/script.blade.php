@@ -626,6 +626,72 @@
         $('ai-key-state').textContent = label;
     }
 
+    // ------------------------------------------------------------------
+    // Balance
+    // ------------------------------------------------------------------
+
+    function money(eur) {
+        return (Math.round(eur * 100) / 100).toFixed(2) + ' €';
+    }
+
+    /** The "Top up" link: the gateway's own answer when it gave one, else the profile. */
+    function topUpUrl() {
+        return (state.account && state.account.top_up_url) || CFG.topUpUrl || '#';
+    }
+
+    function renderAccount(acc) {
+        state.account = acc || null;
+        var line = $('ai-balance');
+        var alertBox = $('ai-balance-alert');
+        var reason = '';
+        if (acc && acc.balance_eur !== null) {
+            line.textContent = L.balance + ': ' + money(acc.balance_eur);
+            line.hidden = false;
+            if (acc.balance_eur <= 0) { reason = L.balance_empty; }
+            else if (acc.low_balance) { reason = L.balance_low.replace('%s', money(acc.balance_eur)); }
+        } else {
+            line.hidden = true;
+        }
+        if (!reason && acc && acc.cap_eur !== null && acc.spent_eur !== null && acc.spent_eur >= acc.cap_eur) {
+            reason = L.cap_reached;
+        }
+        alertBox.hidden = !reason;
+        $('ai-balance-alert-text').textContent = reason;
+        var link = $('ai-topup');
+        link.textContent = L.top_up;
+        link.href = topUpUrl();
+    }
+
+    function loadAccount() {
+        return api('GET', '/account').then(function (res) {
+            if (res && res.ok) {
+                if (res.top_up_url) { CFG.topUpUrl = res.top_up_url; }
+                renderAccount(res.account);
+            }
+        }).catch(function () { /* the balance is a courtesy; never block the page on it */ });
+    }
+
+    /**
+     * A failed step or job whose code says the money ran out gets a sentence in the
+     * page's language and the way to fix it, instead of the gateway's English message.
+     * Returns the node to show, or null for any other failure.
+     */
+    function paymentProblem(code) {
+        var text = code === 'INSUFFICIENT_BALANCE' ? L.error_insufficient_balance
+            : code === 'KEY_CAP_REACHED' ? L.error_key_cap_reached : '';
+        if (!text) { return null; }
+        var box = document.createElement('span');
+        box.appendChild(document.createTextNode(text + ' '));
+        var a = document.createElement('a');
+        a.className = 'ai-btn';
+        a.href = topUpUrl();
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = L.top_up;
+        box.appendChild(a);
+        return box;
+    }
+
     function saveKey(scope, value) {
         var msg = $('ai-key-msg');
         say(msg, '…');
@@ -837,7 +903,8 @@
             note.className = 'ai-turn ai-turn-assistant';
             note.innerHTML = '<span class="ai-turn-role">' + statusLabel(job.status) + '</span>';
             var p = document.createElement('p');
-            p.textContent = job.message;
+            var jobProblem = job.status === 'failed' ? paymentProblem(job.error_code) : null;
+            if (jobProblem) { p.appendChild(jobProblem); } else { p.textContent = job.message; }
             note.appendChild(p);
             thread.appendChild(note);
         }
@@ -849,6 +916,99 @@
      * This is the proof the plugin did its job: a finished step points at a
      * file that now exists in the manager's own folders.
      */
+    /**
+     * The answer of an analysis step: alt text ready to copy, the dominant colours as
+     * swatches and the focal point as percentages, with a dot on the source picture's
+     * figure. A part the gateway could not measure is named, never shown blank.
+     */
+    function renderAnalysis(card, step) {
+        var a = step.analysis;
+        if (!a) { return; }
+        var box = document.createElement('div');
+        box.className = 'ai-analysis';
+
+        if (typeof a.alt === 'string' && a.alt !== '') {
+            var row = document.createElement('div');
+            row.className = 'ai-analysis-row';
+            var label = document.createElement('strong');
+            label.textContent = L.analysis_alt + ': ';
+            var text = document.createElement('span');
+            text.className = 'ai-analysis-alt';
+            text.textContent = a.alt;
+            var copy = document.createElement('button');
+            copy.type = 'button';
+            copy.className = 'ai-btn';
+            copy.textContent = L.files_copy;
+            copy.addEventListener('click', function () {
+                if (navigator.clipboard) { navigator.clipboard.writeText(a.alt); }
+                copy.textContent = L.files_copied;
+            });
+            row.appendChild(label);
+            row.appendChild(text);
+            row.appendChild(copy);
+            box.appendChild(row);
+        }
+
+        if (Array.isArray(a.colors) && a.colors.length) {
+            var colors = document.createElement('div');
+            colors.className = 'ai-analysis-row';
+            var cl = document.createElement('strong');
+            cl.textContent = L.analysis_colors + ': ';
+            colors.appendChild(cl);
+            a.colors.forEach(function (c) {
+                if (!c || !/^#[0-9a-fA-F]{3,8}$/.test(String(c.hex || ''))) { return; }
+                var sw = document.createElement('span');
+                sw.className = 'ai-swatch';
+                sw.style.background = c.hex;
+                sw.title = c.hex + (typeof c.share === 'number' ? ' · ' + Math.round(c.share * 100) + '%' : '');
+                colors.appendChild(sw);
+                colors.appendChild(document.createTextNode(' '));
+            });
+            box.appendChild(colors);
+        }
+
+        if (a.focal && typeof a.focal.x === 'number' && typeof a.focal.y === 'number') {
+            var focal = document.createElement('div');
+            focal.className = 'ai-analysis-row';
+            focal.textContent = L.analysis_focal + ': ' + Math.round(a.focal.x * 100) + '% × ' + Math.round(a.focal.y * 100) + '%';
+            box.appendChild(focal);
+            var fig = card.querySelector('.ai-step-pair figure');
+            if (fig) {
+                fig.style.position = 'relative';
+                var dot = document.createElement('span');
+                dot.className = 'ai-focal-dot';
+                dot.style.left = (a.focal.x * 100) + '%';
+                dot.style.top = (a.focal.y * 100) + '%';
+                fig.appendChild(dot);
+            }
+        }
+
+        if (Array.isArray(a.missing) && a.missing.length) {
+            var miss = document.createElement('div');
+            miss.className = 'ai-hint';
+            miss.textContent = L.analysis_missing + ': ' + a.missing.join(', ');
+            box.appendChild(miss);
+        }
+        card.appendChild(box);
+    }
+
+    /** What happened in the sGallery gallery, if the step was bound to one. */
+    function renderGallery(card, step) {
+        var g = step.gallery;
+        if (!g) { return; }
+        var line = document.createElement('div');
+        line.className = 'ai-hint';
+        if (g.error) {
+            line.className = 'ai-msg is-error';
+            line.textContent = L.gallery_failed + ' (' + g.error + ')';
+        } else if (g.alt) {
+            line.textContent = g.alt === 'saved' ? L.gallery_alt_saved : (g.alt === 'kept' ? L.gallery_alt_kept : L.gallery_alt_none);
+        } else {
+            line.textContent = L.gallery_added.replace('%s', g.document_id);
+        }
+        card.appendChild(line);
+    }
+
     function renderSteps(job) {
         var host = $('ai-steps');
         host.innerHTML = '';
@@ -888,11 +1048,14 @@
             }
 
             card.appendChild(pair);
+            renderAnalysis(card, step);
+            renderGallery(card, step);
 
             if (step.message && step.status === 'failed') {
                 var msg = document.createElement('div');
                 msg.className = 'ai-step-msg';
-                msg.textContent = step.message;
+                var problem = paymentProblem(step.error_code);
+                if (problem) { msg.appendChild(problem); } else { msg.textContent = step.message; }
                 card.appendChild(msg);
             }
 
@@ -1206,6 +1369,9 @@
     function boot() {
         renderKeyState(CFG.key);
         if (!CFG.key || !CFG.key.configured) { return; }
+        loadAccount();
+        // Back from paying on the gateway's tab: the balance is stale until asked again.
+        window.addEventListener('focus', loadAccount);
         loadCatalog().then(loadFolders).then(loadJobs);
     }
 

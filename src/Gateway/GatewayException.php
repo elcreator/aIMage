@@ -47,4 +47,19 @@ class GatewayException extends RuntimeException
     {
         return $this->status === 401 || $this->status === 403;
     }
+
+    /**
+     * The money ran out: `INSUFFICIENT_BALANCE` (the account cannot cover the call) or
+     * `KEY_CAP_REACHED` (this key's own spending cap). Null for anything else.
+     * Neither is retryable - waiting does not add money - and both have a fix the
+     * manager can act on, which is why they get their own codes.
+     */
+    public function paymentCode(): ?string
+    {
+        if ($this->status !== 402) {
+            return null;
+        }
+
+        return $this->errorCode === 'key_spend_cap_reached' ? 'KEY_CAP_REACHED' : 'INSUFFICIENT_BALANCE';
+    }
 }

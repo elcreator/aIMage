@@ -4,6 +4,7 @@ namespace Elcreator\aIMage\Http\Controllers;
 
 use Elcreator\aIMage\Gateway\Connect;
 use Elcreator\aIMage\Gateway\GatewayException;
+use Elcreator\aIMage\Services\Account;
 use Elcreator\aIMage\Services\WorkbenchException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -28,6 +29,13 @@ class SettingsController extends Controller
             (string) $request->input('scope', 'user'),
             (string) $request->input('key', '')
         ));
+    }
+
+    /** The balance behind the key, for the header and the "top up" prompt. `account` is null when it cannot be read. */
+    public function account(): JsonResponse
+    {
+        return $this->respond(fn () => ['account' => (new Account($this->actor()))->summary(),
+            'top_up_url' => Account::fallbackTopUpUrl()]);
     }
 
     /** Send the browser to the gateway's consent page. `scope=site` connects the site-wide key. */

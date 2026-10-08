@@ -83,6 +83,18 @@ no Laravel encrypter and a database dump is a routine artefact. The secret comes
 `AIMAGE_SECRET`, or from a generated `core/custom/aimage.secret` — never from the database
 beside the ciphertext. A stored key is never sent back to the browser in full.
 
+**You do not need to know the secret.** It is generated on first use and kept in
+`core/custom/aimage.secret` (back that file up with the database, or set `AIMAGE_SECRET` so it
+lives in your environment). Three things can happen to it, and none needs a manual step:
+
+- *Moving to `AIMAGE_SECRET`*: the generated file keeps being read as the previous secret, and
+  each saved key is rewritten under the new one the first time it is used.
+- *Rotating*: put the old value in `AIMAGE_SECRET_PREVIOUS` (comma-separated for several), set
+  the new `AIMAGE_SECRET`; saved keys are rewritten on first use, after which the old value can go.
+- *Losing it* (restored database, rebuilt container, site moved without the file): the saved key
+  cannot be read, and the page says so with the Connect button right there. Connecting again
+  replaces the old key - no key is ever shown, copied or needed in advance.
+
 ## Permissions
 
 Two separate questions, and neither substitutes for the other:

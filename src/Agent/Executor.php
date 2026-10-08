@@ -7,6 +7,7 @@ use Elcreator\aIMage\Gateway\GatewayException;
 use Elcreator\aIMage\Gateway\ModelCatalog;
 use Elcreator\aIMage\Models\Job;
 use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Services\Gallery;
 use Elcreator\aIMage\Support\Config;
 use Elcreator\aIMage\Support\ImageScope;
 use GuzzleHttp\Client as HttpClient;
@@ -86,11 +87,23 @@ class Executor
             JobStep::TYPE_EDIT => $this->submitEdit($step),
             JobStep::TYPE_VARIATE => $this->submitVariate($step),
             JobStep::TYPE_UPSCALE => $this->submitUpscale($step),
+            JobStep::TYPE_DESCRIBE => $this->describe($step),
             default => null,
         };
 
         if ($response === null) {
             $step->markFailed('UNKNOWN_STEP_TYPE', 'Nothing knows how to run a "' . $step->type . '" step.');
+
+            return true;
+        }
+
+        // An analysis writes no file: its answer is the result, kept on the step.
+        if ((string) $step->type === JobStep::TYPE_DESCRIBE) {
+            $analysis = $this->analysisOf($response);
+            $step->markSucceeded('', array_filter([
+                'analysis' => $analysis,
+                'gallery' => $this->saveAltToGallery($step, $analysis),
+            ]));
 
             return true;
         }
@@ -130,9 +143,14 @@ class Executor
     private function options(JobStep $step, int $n): array
     {
         $ratio = $step->param('aspect_ratio');
-        $options = ['n' => $n, 'strict' => false];
+        $options = ['n' => $n, 'strict' => false] + $this->styleOptions($step);
         if (is_string($ratio) && preg_match('/^\s*(\d{1,4})\s*[:x]\s*(\d{1,4})\s*$/', $ratio, $m)) {
             $options['aspectRatio'] = $m[1] . ':' . $m[2];
+        }
+
+        $references = $this->referenceUploads($step);
+        if ($references !== []) {
+            $options['references'] = $references;
         }
 
         return $options;
@@ -169,6 +187,7 @@ class Executor
                 'size' => $step->param('size'),
                 'quality' => $step->param('quality'),
                 'background' => $step->param('background'),
+                'options' => ['strict' => false] + $this->styleOptions($step),
             ] + $this->privacy(true), static fn ($value) => $value !== null && $value !== ''),
             [$image],
             $step->idempotencyKey()
@@ -210,6 +229,184 @@ class Executor
             $image,
             $step->idempotencyKey()
         );
+    }
+
+    /**
+     * The normalised options that are about the look of the result rather than its
+     * size: the file format (webp for a web page), and what to keep out of the picture.
+     * Not strict, like every option here: a model that cannot honour one still draws,
+     * and the gateway lists what it ignored in `warnings`.
+     *
+     * @return array{outputFormat?: string, negativePrompt?: string}
+     */
+    private function styleOptions(JobStep $step): array
+    {
+        $options = [];
+        $format = (string) $step->param('output_format', '');
+        if (in_array($format, ['png', 'webp', 'jpeg'], true)) {
+            $options['outputFormat'] = $format;
+        }
+        $negative = trim((string) $step->param('negative_prompt', ''));
+        if ($negative !== '') {
+            $options['negativePrompt'] = $negative;
+        }
+
+        return $options;
+    }
+
+    /**
+     * Reference images (style or subject) go up once each as private uploads and are
+     * named by id; the gateway turns a reference-bearing generation into an edit on the
+     * models that support it. A reference that has vanished from disk fails the step
+     * rather than silently drawing without it - the manager asked for that look.
+     *
+     * @return array<int, array{upload: string, role: string}>
+     */
+    private function referenceUploads(JobStep $step): array
+    {
+        $out = [];
+        foreach ((array) $step->param('references', []) as $reference) {
+            $path = is_array($reference) ? (string) ($reference['path'] ?? '') : (string) $reference;
+            $role = is_array($reference) && in_array($reference['role'] ?? '', ['style', 'subject'], true)
+                ? $reference['role'] : 'style';
+            $bytes = $path !== '' ? $this->scope->read($path) : null;
+
+            if ($bytes === null) {
+                throw new GatewayException('The reference image "' . $path . '" is missing, too large, or no longer accessible.',
+                    0, false, 'SOURCE_UNAVAILABLE');
+            }
+            $upload = $this->client->upload(['name' => 'image', 'contents' => $bytes, 'filename' => basename($path)]);
+            if ((string) ($upload['id'] ?? '') === '') {
+                throw new GatewayException('The gateway did not accept the reference image.', 0, false, 'UPLOAD_FAILED');
+            }
+            $out[] = ['upload' => (string) $upload['id'], 'role' => $role];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Alt text, colours and a focal point for one image. The file goes up once as a
+     * private upload (the gateway never fetches an address we choose) and is analysed by
+     * its id. Nothing is written to disk: the answer is kept on the step.
+     */
+    private function describe(JobStep $step): array
+    {
+        $upload = $this->client->upload($this->readSource($step));
+        $id = (string) ($upload['id'] ?? '');
+
+        if ($id === '') {
+            throw new GatewayException('The gateway did not accept the image for analysis.', 0, false, 'UPLOAD_FAILED');
+        }
+
+        return $this->client->analyzeImage(array_filter([
+            'upload' => $id,
+            'want' => (array) $step->param('want', ['alt', 'focal', 'colors']),
+            'lang' => (string) $step->param('lang', 'en'),
+            'context' => (string) $step->prompt,
+        ], static fn ($value) => $value !== null && $value !== '' && $value !== []), $step->idempotencyKey());
+    }
+
+    /**
+     * Attach the written results to a document's sGallery when the step asked for it.
+     *
+     * Best effort by design: the images are made and paid for, so a gallery that is
+     * missing, a document the manager can no longer edit or a result outside the site
+     * root is reported on the step, never a reason to fail it.
+     *
+     * @param string[] $written paths relative to the manager's file root
+     * @return array<string, mixed>|null
+     */
+    private function attachToGallery(JobStep $step, array $written): ?array
+    {
+        $target = $step->param('gallery');
+        if (!is_array($target) || empty($target['document_id'])) {
+            return null;
+        }
+        $documentId = (int) $target['document_id'];
+
+        try {
+            if (!Gallery::available()) {
+                return ['document_id' => $documentId, 'error' => 'gallery_unavailable'];
+            }
+            if (!Gallery::canEdit($this->scope, $documentId)) {
+                return ['document_id' => $documentId, 'error' => 'gallery_forbidden'];
+            }
+            $ids = [];
+            foreach ($written as $path) {
+                $file = Gallery::siteRelative($this->scope, $path);
+                if ($file === null) {
+                    return ['document_id' => $documentId, 'error' => 'gallery_outside_site'];
+                }
+                $ids[] = Gallery::attach($documentId, $file,
+                    (string) ($target['item_type'] ?? Gallery::DEFAULT_ITEM_TYPE),
+                    (string) ($target['block'] ?? Gallery::DEFAULT_BLOCK))['id'];
+            }
+
+            return ['document_id' => $documentId, 'item_ids' => $ids];
+        } catch (Throwable $e) {
+            return ['document_id' => $documentId, 'error' => 'gallery_failed'];
+        }
+    }
+
+    /**
+     * Write an analysis step's alt text to the gallery image it was about, when the step
+     * came from a gallery. An alt text that is already there is kept unless the plan said
+     * to overwrite.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function saveAltToGallery(JobStep $step, array $analysis): ?array
+    {
+        $target = $step->param('gallery');
+        if (!is_array($target) || empty($target['item_id'])) {
+            return null;
+        }
+        $itemId = (int) $target['item_id'];
+        $alt = is_string($analysis['alt'] ?? null) ? $analysis['alt'] : '';
+
+        try {
+            if (!Gallery::available()) {
+                return ['item_id' => $itemId, 'error' => 'gallery_unavailable'];
+            }
+            if (!Gallery::canEdit($this->scope, (int) ($target['document_id'] ?? 0))) {
+                return ['item_id' => $itemId, 'error' => 'gallery_forbidden'];
+            }
+            if ($alt === '') {
+                return ['item_id' => $itemId, 'alt' => 'none'];
+            }
+
+            return ['item_id' => $itemId, 'alt' => Gallery::setAlt($itemId,
+                (string) ($target['lang'] ?? Gallery::BASE_LANG), $alt, (bool) ($target['overwrite'] ?? false))];
+        } catch (Throwable $e) {
+            return ['item_id' => $itemId, 'error' => 'gallery_failed'];
+        }
+    }
+
+    /**
+     * The parts of an analysis worth keeping. `missing` and `notes` stay: a part the
+     * gateway could not measure must read as missing, never as an empty answer.
+     */
+    private function analysisOf(array $response): array
+    {
+        return array_filter([
+            // The gateway answers {text, lang}; a bare string is accepted too.
+            'alt' => self::altText($response['alt'] ?? null),
+            'focal' => is_array($response['focal'] ?? null) ? $response['focal'] : null,
+            'colors' => is_array($response['colors'] ?? null) ? $response['colors'] : null,
+            'ocr' => $response['ocr'] ?? null,
+            'moderation' => $response['moderation'] ?? null,
+            'missing' => (array) ($response['missing'] ?? []),
+            'notes' => (array) ($response['notes'] ?? []),
+            'run_id' => $response['run_id'] ?? null,
+        ], static fn ($value) => $value !== null);
+    }
+
+    private static function altText(mixed $alt): ?string
+    {
+        $text = is_array($alt) ? ($alt['text'] ?? null) : $alt;
+
+        return is_string($text) && trim($text) !== '' ? trim($text) : null;
     }
 
     /**
@@ -325,6 +522,7 @@ class Executor
         // How it was made (feature 24): model, vendor model id, input hashes, options,
         // C2PA - kept with the step, next to the files it produced.
         $step->markSucceeded($written[0], array_filter([
+            'gallery' => $this->attachToGallery($step, $written),
             'paths' => $written,
             'count' => count($written),
             'provenance' => is_array($response['provenance'] ?? null) ? $response['provenance'] : null,
@@ -525,7 +723,7 @@ class Executor
         }
 
         $step->markFailed(
-            $e->errorCode ?: ($e->isAuthFailure() ? 'KEY_REJECTED' : 'PROVIDER_FAILED'),
+            $e->paymentCode() ?? $e->errorCode ?: ($e->isAuthFailure() ? 'KEY_REJECTED' : 'PROVIDER_FAILED'),
             $e->getMessage()
         );
     }

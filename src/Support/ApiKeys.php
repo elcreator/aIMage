@@ -87,8 +87,36 @@ final class ApiKeys
             ->where('user', $userId)
             ->where('setting_name', self::SETTING)
             ->value('setting_value');
+        $stored = is_string($stored) ? $stored : null;
+        $key = Crypt::decrypt($stored);
 
-        return Crypt::decrypt(is_string($stored) ? $stored : null);
+        // Readable only with an old secret: write it again under the current one, so a
+        // rotation (or a move to AIMAGE_SECRET) finishes by itself on first use.
+        if ($key !== null && Crypt::needsRotation($stored)) {
+            UserSetting::query()->where('user', $userId)->where('setting_name', self::SETTING)
+                ->update(['setting_value' => Crypt::encrypt($key)]);
+        }
+
+        return $key;
+    }
+
+    /**
+     * Is a key saved for this manager (or for the site) that this server cannot read?
+     *
+     * The honest name for "the encryption secret changed": a restored database, a site
+     * moved without `core/custom/aimage.secret`, a rebuilt container. The page says so and
+     * offers Connect again, instead of asking for a key as if none had ever been saved.
+     * `own` is the manager's key, `site` the fallback.
+     *
+     * @return array{own: bool, site: bool}
+     */
+    public static function unreadable(int $userId): array
+    {
+        $own = UserSetting::query()->where('user', $userId)->where('setting_name', self::SETTING)->value('setting_value');
+        $site = SystemSetting::query()->where('setting_name', self::SETTING)->value('setting_value');
+        $broken = static fn ($value): bool => is_string($value) && trim($value) !== '' && Crypt::decrypt($value) === null;
+
+        return ['own' => $userId > 0 && $broken($own), 'site' => !static::siteKeyIsFromConfig() && $broken($site)];
     }
 
     /**
@@ -145,8 +173,14 @@ final class ApiKeys
         $stored = SystemSetting::query()
             ->where('setting_name', self::SETTING)
             ->value('setting_value');
+        $stored = is_string($stored) ? $stored : null;
+        $key = Crypt::decrypt($stored);
 
-        return Crypt::decrypt(is_string($stored) ? $stored : null);
+        if ($key !== null && Crypt::needsRotation($stored)) {
+            SystemSetting::query()->where('setting_name', self::SETTING)->update(['setting_value' => Crypt::encrypt($key)]);
+        }
+
+        return $key;
     }
 
     /** True when the fallback comes from config and the settings row is therefore inert. */

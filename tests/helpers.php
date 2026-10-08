@@ -182,6 +182,7 @@ function aimageReset(): void
         'aimage_messages', 'aimage_job_steps', 'aimage_jobs',
         'user_attributes', 'user_settings', 'system_settings',
         'member_groups', 'membergroup_access', 'file_groups',
+        's_galleries', 's_gallery_fields', 'site_content', 'document_groups',
         'system_cli_tasks', 'system_cli_task_logs',
     ] as $table) {
         if (Schema::hasTable($table)) {

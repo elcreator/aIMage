@@ -7,6 +7,7 @@ use Elcreator\aIMage\Gateway\Estimator;
 use Elcreator\aIMage\Gateway\ModelCatalog;
 use Elcreator\aIMage\Models\Job;
 use Elcreator\aIMage\Models\JobStep;
+use Elcreator\aIMage\Services\Gallery;
 use Elcreator\aIMage\Support\Config;
 use Elcreator\aIMage\Support\ImageScope;
 
@@ -42,6 +43,8 @@ class Tools
     public const PLAN_EDIT = 'plan_edit';
     public const PLAN_VARIATE = 'plan_variate';
     public const PLAN_UPSCALE = 'plan_upscale';
+    public const PLAN_ANALYZE = 'plan_analyze';
+    public const PLAN_GALLERY_ALT = 'plan_gallery_alt';
 
     /** Control flow. */
     public const ASK_USER = 'ask_user';
@@ -68,7 +71,7 @@ class Tools
         $maxImages = (int) Config::limit('max_images_per_job', 200);
         $extensions = implode(', ', $this->scope->allowedExtensions());
 
-        return [
+        $definitions = [
             [
                 'name' => self::LIST_IMAGES,
                 'description' => 'List the image files the manager may work with. Use this before planning work on '
@@ -115,6 +118,17 @@ class Tools
                         'quality' => ['type' => 'string', 'description' => 'Optional. Must be one the chosen model supports.'],
                         'background' => ['type' => 'string', 'description' => 'Optional, e.g. transparent, for models that support it.'],
                         'basename' => ['type' => 'string', 'description' => 'Optional file name stem for the results.'],
+                        'output_format' => ['type' => 'string', 'enum' => ['png', 'webp', 'jpeg'],
+                            'description' => 'Optional file format of the results. Use "webp" for images going on a web page (much smaller than png).'],
+                        'negative_prompt' => ['type' => 'string',
+                            'description' => 'Optional: what must NOT appear (e.g. "text, watermark, blur"). Only some models honour it; the rest ignore it.'],
+                        'references' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'string'],
+                            'description' => 'Optional image paths (from list_images) whose style or subject the result should follow. Only some models accept reference images.',
+                        ],
+                        'reference_role' => ['type' => 'string', 'enum' => ['style', 'subject'],
+                            'description' => 'What the references are for. Defaults to "style".'],
                         'folder' => [
                             'type' => 'string',
                             'description' => 'Optional destination folder, relative to the file area of this '
@@ -138,6 +152,10 @@ class Tools
                             'description' => 'Image paths relative to the manager\'s file root.',
                         ],
                         'prompt' => ['type' => 'string', 'description' => 'What to change about each image.'],
+                        'output_format' => ['type' => 'string', 'enum' => ['png', 'webp', 'jpeg'],
+                            'description' => 'Optional file format of the results. Use "webp" for images going on a web page (much smaller than png).'],
+                        'negative_prompt' => ['type' => 'string',
+                            'description' => 'Optional: what must NOT appear (e.g. "text, watermark, blur"). Only some models honour it; the rest ignore it.'],
                         'size' => ['type' => 'string'],
                         'quality' => ['type' => 'string'],
                         'folder' => [
@@ -189,6 +207,27 @@ class Tools
                 ],
             ],
             [
+                'name' => self::PLAN_ANALYZE,
+                'description' => 'Queue an analysis of existing images: alt text for the <img> tag written in a language of '
+                    . 'your choice, the dominant colours and a focal point (for cropping). It changes no file; the answers are '
+                    . 'kept on the step for the manager to copy. Use it when asked for alt text, descriptions, captions, '
+                    . 'colours or a crop point.',
+                'input_schema' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'paths' => ['type' => 'array', 'items' => ['type' => 'string']],
+                        'lang' => ['type' => 'string', 'description' => 'Language code for the alt text, e.g. "en", "uk", "sk". Defaults to "en".'],
+                        'context' => ['type' => 'string', 'description' => 'Optional: what the page is about (e.g. "product: oak chair"), so the alt text fits it.'],
+                        'want' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'string', 'enum' => ['alt', 'focal', 'colors']],
+                            'description' => 'Which parts. Defaults to all three.',
+                        ],
+                    ],
+                    'required' => ['paths'],
+                ],
+            ],
+            [
                 'name' => self::ASK_USER,
                 'description' => 'Ask the manager a question and stop. Use this whenever the request is ambiguous in a '
                     . 'way that would change the images — subject, style, count, which files, where results go. Do not '
@@ -219,6 +258,8 @@ class Tools
                 ],
             ],
         ];
+
+        return $this->withGallery($definitions);
     }
 
     /**
@@ -237,6 +278,8 @@ class Tools
             self::PLAN_EDIT => $this->planImageToImage($input, JobStep::TYPE_EDIT),
             self::PLAN_VARIATE => $this->planImageToImage($input, JobStep::TYPE_VARIATE),
             self::PLAN_UPSCALE => $this->planImageToImage($input, JobStep::TYPE_UPSCALE),
+            self::PLAN_ANALYZE => $this->planAnalyze($input),
+            self::PLAN_GALLERY_ALT => $this->planGalleryAlt($input),
             self::ASK_USER => $this->askUser($input),
             self::FINISH => $this->finish($input),
             default => ['content' => 'There is no tool called "' . $name . '".'],
@@ -317,10 +360,22 @@ class Tools
             return ['content' => 'The manager may not write to the folder "' . (string) ($input['folder'] ?? '') . '".'];
         }
 
+        $style = $this->styleParams($input, true);
+
+        if (is_string($style)) {
+            return ['content' => $style];
+        }
+
+        $gallery = $this->galleryParams($input);
+
+        if (is_string($gallery)) {
+            return ['content' => $gallery];
+        }
+
         $this->appendStep(JobStep::TYPE_GENERATE, [
             'model' => $model,
             'prompt' => $prompt,
-            'params' => $controls + [
+            'params' => $controls + $style + $gallery + [
                 'n' => $capped,
                 'folder' => $folder,
                 'basename' => $this->scope->sanitizeBasename((string) ($input['basename'] ?? 'aimage')) ?: 'aimage',
@@ -379,6 +434,18 @@ class Tools
             return ['content' => $controls];
         }
 
+        $style = $type === JobStep::TYPE_EDIT ? $this->styleParams($input, false) : [];
+
+        if (is_string($style)) {
+            return ['content' => $style];
+        }
+
+        $gallery = $this->galleryParams($input);
+
+        if (is_string($gallery)) {
+            return ['content' => $gallery];
+        }
+
         $perImage = $type === JobStep::TYPE_VARIATE ? max(1, (int) ($input['count'] ?? 1)) : 1;
         $queued = 0;
         $rejected = [];
@@ -404,7 +471,11 @@ class Tools
                 continue;
             }
 
-            $params = $controls + ['folder' => $folder];
+            $params = $controls + ['folder' => $folder] + $gallery;
+
+            if ($type === JobStep::TYPE_EDIT) {
+                $params += $style;
+            }
 
             if ($type === JobStep::TYPE_UPSCALE) {
                 $params['scale'] = max(2, min(4, (int) ($input['scale'] ?? 2)));
@@ -428,6 +499,232 @@ class Tools
 
         if ($rejected !== []) {
             $message .= ' Skipped ' . count($rejected) . ' unusable path(s): ' . implode(', ', array_slice($rejected, 0, 10)) . '.';
+        }
+
+        return ['content' => $message];
+    }
+
+    /**
+     * Analysis queues one step per image like an edit does, but needs no model, no
+     * destination folder and no image budget: it produces words, not files.
+     */
+    private function planAnalyze(array $input): array
+    {
+        $paths = array_values(array_filter(array_map('strval', (array) ($input['paths'] ?? []))));
+
+        if ($paths === []) {
+            return ['content' => 'At least one image path is required. Use ' . self::LIST_IMAGES . ' to find them.'];
+        }
+
+        $lang = strtolower(trim((string) ($input['lang'] ?? 'en')));
+        if (!preg_match('/^[a-z]{2}(-[a-z]{2})?$/', $lang)) {
+            $lang = 'en';
+        }
+
+        $want = array_values(array_intersect(['alt', 'focal', 'colors'], array_map('strval', (array) ($input['want'] ?? []))));
+        $want = $want === [] ? ['alt', 'focal', 'colors'] : $want;
+        $context = mb_substr(trim((string) ($input['context'] ?? '')), 0, 500);
+
+        $queued = 0;
+        $rejected = [];
+
+        foreach ($paths as $path) {
+            $absolute = $this->scope->canRead($path) ? $this->scope->absoluteOf($path) : null;
+
+            if ($absolute === null || !is_file($absolute)) {
+                $rejected[] = $path;
+                continue;
+            }
+
+            $this->appendStep(JobStep::TYPE_DESCRIBE, [
+                'prompt' => $context,
+                'params' => ['lang' => $lang, 'want' => $want],
+                'source_path' => $path,
+            ]);
+            $queued++;
+        }
+
+        $message = 'Queued analysis (' . implode(', ', $want) . '; language ' . $lang . ') for ' . $queued . ' image(s).';
+
+        if ($rejected !== []) {
+            $message .= ' Skipped ' . count($rejected) . ' unusable path(s): ' . implode(', ', array_slice($rejected, 0, 10)) . '.';
+        }
+
+        return ['content' => $message];
+    }
+
+    /** How many reference images one step may carry: they are uploaded, and billed in tokens, per step. */
+    private const MAX_REFERENCES = 4;
+
+    /**
+     * The look-and-feel parameters of a generation or edit: file format, negative prompt
+     * and (generation only) reference images. Returns a message for the model when a
+     * value is unusable, so it corrects itself instead of the worker failing at night.
+     *
+     * @return array<string, mixed>|string
+     */
+    private function styleParams(array $input, bool $references)
+    {
+        $params = [];
+
+        $format = strtolower(trim((string) ($input['output_format'] ?? '')));
+        if ($format === 'jpg') {
+            $format = 'jpeg';
+        }
+        if ($format !== '') {
+            if (!in_array($format, ['png', 'webp', 'jpeg'], true)) {
+                return 'output_format must be png, webp or jpeg.';
+            }
+            $params['output_format'] = $format;
+        }
+
+        $negative = mb_substr(trim((string) ($input['negative_prompt'] ?? '')), 0, 500);
+        if ($negative !== '') {
+            $params['negative_prompt'] = $negative;
+        }
+
+        if ($references) {
+            $paths = array_values(array_filter(array_map('strval', (array) ($input['references'] ?? []))));
+            if (count($paths) > self::MAX_REFERENCES) {
+                return 'At most ' . self::MAX_REFERENCES . ' reference images per step.';
+            }
+            $role = (string) ($input['reference_role'] ?? 'style') === 'subject' ? 'subject' : 'style';
+            foreach ($paths as $path) {
+                $absolute = $this->scope->canRead($path) ? $this->scope->absoluteOf($path) : null;
+                if ($absolute === null || !is_file($absolute)) {
+                    return 'The reference "' . $path . '" is not a readable image. Use ' . self::LIST_IMAGES . ' to find real paths.';
+                }
+                $params['references'][] = ['path' => $path, 'role' => $role];
+            }
+        }
+
+        return $params;
+    }
+
+    /**
+     * The gallery tools exist only on a site that has sGallery: a planner offered a
+     * gallery it cannot use would spend a turn trying.
+     */
+    private function withGallery(array $definitions): array
+    {
+        if (!Gallery::available()) {
+            return $definitions;
+        }
+
+        $target = [
+            'gallery_document_id' => ['type' => 'integer', 'description' => 'Optional: id of a document whose sGallery gallery should receive each result '
+                . '(the files stay where they are written; the gallery just points at them). Only for documents the manager may edit.'],
+            'gallery_item_type' => ['type' => 'string', 'description' => 'Optional gallery item type, e.g. "product". Defaults to "resource".'],
+            'gallery_block' => ['type' => 'string', 'description' => 'Optional gallery block name. Defaults to "1".'],
+        ];
+
+        foreach ($definitions as &$definition) {
+            if (in_array($definition['name'], [self::PLAN_GENERATE, self::PLAN_EDIT, self::PLAN_VARIATE, self::PLAN_UPSCALE], true)) {
+                $definition['input_schema']['properties'] += $target;
+            }
+        }
+        unset($definition);
+
+        $definitions[] = [
+            'name' => self::PLAN_GALLERY_ALT,
+            'description' => 'Queue alt text for the images already in a document\'s sGallery gallery, written in a language of your choice '
+                . 'and saved into the gallery. An alt text a person already wrote is kept unless overwrite is true. '
+                . 'Alt text is limited to 100 characters.',
+            'input_schema' => [
+                'type' => 'object',
+                'properties' => [
+                    'document_id' => ['type' => 'integer', 'description' => 'The document whose gallery to describe.'],
+                    'lang' => ['type' => 'string', 'description' => 'Language of the alt text, e.g. "en", "uk", "sk". Defaults to "en".'],
+                    'gallery_lang' => ['type' => 'string', 'description' => 'Which gallery text language to store under. Leave empty (stores as the default "base" text) unless the site is multilingual with sLang.'],
+                    'context' => ['type' => 'string', 'description' => 'Optional: what the page is about, so the alt text fits it.'],
+                    'overwrite' => ['type' => 'boolean', 'description' => 'Replace alt text that already exists. Defaults to false.'],
+                    'item_type' => ['type' => 'string', 'description' => 'Gallery item type, e.g. "product". Defaults to "resource".'],
+                    'block' => ['type' => 'string', 'description' => 'Gallery block name. Defaults to "1".'],
+                ],
+                'required' => ['document_id'],
+            ],
+        ];
+
+        return $definitions;
+    }
+
+    /**
+     * Where results should be attached, validated now rather than at four in the morning.
+     *
+     * @return array{gallery?: array<string, mixed>}|string a message for the model when unusable
+     */
+    private function galleryParams(array $input)
+    {
+        $documentId = (int) ($input['gallery_document_id'] ?? 0);
+
+        if ($documentId <= 0) {
+            return [];
+        }
+        if (!Gallery::available()) {
+            return 'This site has no sGallery, so results cannot be attached to a document gallery.';
+        }
+        if (!Gallery::canEdit($this->scope, $documentId)) {
+            return 'Document ' . $documentId . ' does not exist or the manager may not edit it.';
+        }
+
+        return ['gallery' => [
+            'document_id' => $documentId,
+            'item_type' => trim((string) ($input['gallery_item_type'] ?? '')) ?: Gallery::DEFAULT_ITEM_TYPE,
+            'block' => trim((string) ($input['gallery_block'] ?? '')) ?: Gallery::DEFAULT_BLOCK,
+        ]];
+    }
+
+    /** One analysis step per readable image of a document's gallery, each remembering which gallery row its alt text belongs to. */
+    private function planGalleryAlt(array $input): array
+    {
+        $documentId = (int) ($input['document_id'] ?? 0);
+
+        if (!Gallery::available()) {
+            return ['content' => 'This site has no sGallery.'];
+        }
+        if (!Gallery::canEdit($this->scope, $documentId)) {
+            return ['content' => 'Document ' . $documentId . ' does not exist or the manager may not edit it.'];
+        }
+
+        $itemType = trim((string) ($input['item_type'] ?? '')) ?: Gallery::DEFAULT_ITEM_TYPE;
+        $block = trim((string) ($input['block'] ?? '')) ?: Gallery::DEFAULT_BLOCK;
+        $lang = strtolower(trim((string) ($input['lang'] ?? 'en')));
+        if (!preg_match('/^[a-z]{2}(-[a-z]{2})?$/', $lang)) {
+            $lang = 'en';
+        }
+        $galleryLang = trim((string) ($input['gallery_lang'] ?? '')) ?: Gallery::BASE_LANG;
+        $overwrite = (bool) ($input['overwrite'] ?? false);
+        $context = mb_substr(trim((string) ($input['context'] ?? '')), 0, 500);
+
+        $images = Gallery::images($documentId, $itemType, $block);
+        if ($images === []) {
+            return ['content' => 'The gallery of document ' . $documentId . ' has no images.'];
+        }
+
+        $queued = 0;
+        $skipped = 0;
+
+        foreach ($images as $image) {
+            $path = Gallery::scopePath($this->scope, $image);
+
+            if ($path === null) {
+                $skipped++;
+                continue;
+            }
+
+            $this->appendStep(JobStep::TYPE_DESCRIBE, [
+                'prompt' => $context !== '' ? $context : Gallery::documentTitle($documentId),
+                'params' => ['lang' => $lang, 'want' => ['alt'], 'gallery' => [
+                    'document_id' => $documentId, 'item_id' => $image['id'], 'lang' => $galleryLang, 'overwrite' => $overwrite,
+                ]],
+                'source_path' => $path,
+            ]);
+            $queued++;
+        }
+
+        $message = 'Queued alt text (' . $lang . ') for ' . $queued . ' gallery image(s) of document ' . $documentId . '.';
+        if ($skipped > 0) {
+            $message .= ' Skipped ' . $skipped . ' the manager cannot read or that are missing on disk.';
         }
 
         return ['content' => $message];
@@ -596,6 +893,7 @@ class Tools
         foreach (JobStep::query()->where('job_id', $this->job->getKey())->get() as $step) {
             $estimates[] = match ((string) $step->type) {
                 JobStep::TYPE_UPSCALE => $this->estimator->upscale($step->expectedImages()),
+                JobStep::TYPE_DESCRIBE => $this->estimator->analyze(),
                 default => $this->estimator->image(
                     (string) $step->model,
                     $step->expectedImages(),

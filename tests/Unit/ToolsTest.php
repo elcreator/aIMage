@@ -50,7 +50,7 @@ test('the declared tools are exactly the ones dispatch understands', function ()
 
     expect($declared)->toEqualCanonicalizing([
         Tools::LIST_IMAGES, Tools::LIST_FOLDERS,
-        Tools::PLAN_GENERATE, Tools::PLAN_EDIT, Tools::PLAN_VARIATE, Tools::PLAN_UPSCALE,
+        Tools::PLAN_GENERATE, Tools::PLAN_EDIT, Tools::PLAN_VARIATE, Tools::PLAN_UPSCALE, Tools::PLAN_ANALYZE,
         Tools::ASK_USER, Tools::FINISH,
     ]);
 });

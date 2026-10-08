@@ -147,6 +147,8 @@ final class Actor
             'own_key_masked' => ApiKeys::mask(ApiKeys::userKey($this->userId)),
             'site_key_available' => ApiKeys::siteKey() !== null,
             'site_key_from_config' => ApiKeys::siteKeyIsFromConfig(),
+            // A key is saved but this server cannot read it (the encryption secret changed).
+            'unreadable' => ApiKeys::unreadable($this->userId),
         ];
     }
 }

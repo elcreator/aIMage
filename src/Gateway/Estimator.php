@@ -94,6 +94,16 @@ class Estimator
     }
 
     /**
+     * Describing an image: the alt text is one short vision-chat answer (a fraction of a
+     * cent on a small model), colours and the focal point are free. Priced as unknown
+     * rather than as zero, so the total says it is incomplete.
+     */
+    public function analyze(int $count = 1): Estimate
+    {
+        return Estimate::unknown(['Alt text is billed by tokens on the gateway (a fraction of a cent per image); colours and focal point are free.']);
+    }
+
+    /**
      * One planner turn.
      *
      * Both halves are guesses — the prompt is measured but tokenised by

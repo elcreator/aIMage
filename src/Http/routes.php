@@ -52,6 +52,7 @@ Route::post('/jobs/{uuid}/cancel', [JobController::class, 'cancel'])->name('aima
 Route::post('/voice/transcribe', [VoiceController::class, 'transcribe'])->name('aimage.voice.transcribe');
 Route::post('/voice/speak', [VoiceController::class, 'speak'])->name('aimage.voice.speak');
 
+Route::get('/account', [SettingsController::class, 'account'])->name('aimage.account');
 Route::post('/settings/key', [SettingsController::class, 'saveKey'])->name('aimage.settings.key');
 
 // "Connect with ai.artur.work": no key to copy. `connect` sends the manager's browser

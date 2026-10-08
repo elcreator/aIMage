@@ -87,7 +87,7 @@ class Planner
             return $this->stop(
                 $job,
                 Job::STATUS_FAILED,
-                $e->isAuthFailure() ? 'KEY_REJECTED' : 'PLANNER_FAILED',
+                $e->paymentCode() ?? ($e->isAuthFailure() ? 'KEY_REJECTED' : 'PLANNER_FAILED'),
                 $e->getMessage()
             );
         }
@@ -306,6 +306,10 @@ class Planner
             '',
             'Selected image model: ' . $imageModel . ($actions !== '' ? ' (supports: ' . $actions . ')' : ''),
             $controlLines !== [] ? "Its accepted controls:\n" . implode("\n", $controlLines) : '',
+            'You can also queue an analysis (' . Tools::PLAN_ANALYZE . '): alt text, colours and a focal point for existing images. It changes no file; the answers appear on the task for the manager to copy. Ask which language the alt text should be in only if the request does not make it clear.',
+            \Elcreator\aIMage\Services\Gallery::available()
+                ? 'This site has sGallery. Results can be attached to a document\'s gallery (gallery_document_id on the plan tools), and ' . Tools::PLAN_GALLERY_ALT . ' writes alt text into a document\'s existing gallery. Ask for the document id only if the request does not give it.'
+                : '',
             'Upscaling always uses ' . ModelCatalog::UPSCALE_MODEL . ', whatever the selected model is.',
             '',
             'Files: paths are relative to the manager\'s own file area, and they may only see part of the site.',
