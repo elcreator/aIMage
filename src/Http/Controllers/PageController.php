@@ -4,6 +4,7 @@ namespace Elcreator\aIMage\Http\Controllers;
 
 use Elcreator\aIMage\Console\BatchHandler;
 use Elcreator\aIMage\Services\Account;
+use Elcreator\aIMage\Services\Editor;
 use Elcreator\aIMage\Support\Config;
 use EvolutionCMS\Services\SystemTasks\SystemTaskRegistry;
 use Illuminate\Contracts\View\View;
@@ -48,6 +49,12 @@ class PageController extends Controller
             // controls entirely rather than hiding them, so nothing is
             // bound to an element that is not there.
             'features' => ['voice' => Config::feature('voice')],
+            'editor' => [
+                'bundleUrl' => route('aimage.editor.bundle', ['v' => Editor::bundleVersion()]),
+                'available' => Editor::bundlePath() !== null,
+                'language' => Editor::languageFor((string) app()->getLocale()),
+                'canReplace' => Editor::canReplace(),
+            ],
             'defaults' => [
                 'text_model' => Config::defaultModel('text'),
                 'image_model' => Config::defaultModel('image'),

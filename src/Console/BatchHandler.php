@@ -8,6 +8,7 @@ use Elcreator\aIMage\Gateway\Client;
 use Elcreator\aIMage\Gateway\Estimator;
 use Elcreator\aIMage\Gateway\ModelCatalog;
 use Elcreator\aIMage\Models\Job;
+use Elcreator\aIMage\Services\ResultDelivery;
 use Elcreator\aIMage\Models\JobStep;
 use Elcreator\aIMage\Support\ApiKeys;
 use Elcreator\aIMage\Support\Config;
@@ -271,8 +272,24 @@ class BatchHandler implements SystemTaskHandlerInterface
             ? 'All ' . $total . ' step(s) completed.'
             : $succeeded . ' of ' . $total . ' step(s) completed; the rest failed.';
 
+        // The results also go where the job was told to put them (an aMount mount, a computer).
+        // Each refusal is kept per file in result_json: none is dropped silently.
+        $result = is_array($job->result_json) ? $job->result_json : [];
+        if (trim((string) $job->deliver_to) !== '') {
+            try {
+                $sent = ResultDelivery::deliver($job);
+                $result['deliveries'] = $sent;
+                $message .= ' Sent ' . $sent['sent'] . ' to ' . $job->deliver_to
+                    . ($sent['failed'] > 0 ? ' (' . $sent['failed'] . ' refused: ' . (string) (array_values(array_filter($sent['files'], static fn ($f) => empty($f['ok'])))[0]['error'] ?? '') . ')' : '') . '.';
+            } catch (\Throwable $e) {
+                $result['deliveries'] = ['sent' => 0, 'failed' => 0, 'files' => [], 'error' => mb_substr($e->getMessage(), 0, 300)];
+                $message .= ' Sending the results failed: ' . $e->getMessage();
+            }
+        }
+
         $job->forceFill([
             'status' => Job::STATUS_SUCCEEDED,
+            'result_json' => $result,
             'message' => mb_substr($message, 0, 255),
             'error_code' => '',
             'finished_at' => now(),

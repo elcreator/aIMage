@@ -30,6 +30,11 @@
         applying: false,
         filesPicking: true,
         filesSelect: null,
+        filesTarget: null,
+        painter: null,
+        painterLoad: null,
+        editing: null,
+        toastTimer: null,
         pendingStop: false,
         speak: false,
         spoken: null,
@@ -284,13 +289,14 @@
     // "Put results here" does that.
     // ------------------------------------------------------------------
 
-    /** Open the browser to choose where results go. */
-    function openFiles() {
+    /** Open the browser to choose a folder: where results go, or where new edits go. */
+    function openFiles(target) {
         state.filesPicking = true;
         state.filesSelect = null;
+        state.filesTarget = target || $('ai-folder');
         $('ai-files-use').hidden = false;
         $('ai-files').hidden = false;
-        browse(($('ai-folder').value || '').trim() || state.filesFolder || '');
+        browse((state.filesTarget.value || '').trim() || state.filesFolder || '');
     }
 
     /**
@@ -481,6 +487,14 @@
         return icon;
     }
 
+    /** The same icon set, at text size, for inside a button. */
+    function buttonIcon(name) {
+        var icon = document.createElement('i');
+        icon.className = 'fa ' + name;
+        icon.setAttribute('aria-hidden', 'true');
+        return icon;
+    }
+
     function clearPreview() {
         var pane = $('ai-files-preview');
         pane.hidden = true;
@@ -529,6 +543,19 @@
                 file.modified ? new Date(file.modified * 1000).toLocaleString() : L.files_unknown
             ));
             pane.appendChild(urlRow(file));
+
+            if (CFG.editor && CFG.editor.available) {
+                var edit = document.createElement('button');
+                edit.type = 'button';
+                edit.className = 'ai-btn ai-btn-primary ai-btn-small ai-btn-edit';
+                edit.appendChild(buttonIcon('fa-paint-brush'));
+                edit.appendChild(document.createTextNode(L.editor_edit));
+                edit.addEventListener('click', function () {
+                    closeFiles();
+                    openEditor({ source: file.path, mime: file.mime });
+                });
+                pane.appendChild(edit);
+            }
         });
     }
 
@@ -1032,14 +1059,14 @@
             pair.className = 'ai-step-pair' + (step.source_url ? '' : ' is-single');
 
             if (step.source_url) {
-                pair.appendChild(figure(step.source_url, L.before, step.source_path));
+                pair.appendChild(figure(step.source_url, L.before, step.source_path, false, true));
             }
 
             if (step.target_url) {
                 // A result is always inside the write root, so the browser can
                 // always open where it landed. A source may not be — it can sit
                 // anywhere the manager may read — so only the result is a link.
-                pair.appendChild(figure(step.target_url, L.after, step.target_path, true));
+                pair.appendChild(figure(step.target_url, L.after, step.target_path, true, true));
             } else {
                 var placeholder = document.createElement('div');
                 placeholder.className = 'ai-step-placeholder';
@@ -1063,7 +1090,7 @@
         });
     }
 
-    function figure(src, caption, path, locatable) {
+    function figure(src, caption, path, locatable, editable) {
         var fig = document.createElement('figure');
         var img = document.createElement('img');
         img.src = src;
@@ -1079,6 +1106,20 @@
             fig.className = 'is-locatable';
             fig.title = L.files_locate || path;
             fig.addEventListener('click', function () { inspectFile(path); });
+        }
+
+        if (editable && path && CFG.editor && CFG.editor.available) {
+            var edit = document.createElement('button');
+            edit.type = 'button';
+            edit.className = 'ai-fig-edit';
+            edit.title = L.editor_edit;
+            edit.setAttribute('aria-label', L.editor_edit);
+            edit.appendChild(buttonIcon('fa-paint-brush'));
+            edit.addEventListener('click', function (event) {
+                event.stopPropagation();
+                openEditor({ source: path });
+            });
+            fig.appendChild(edit);
         }
 
         return fig;
@@ -1363,6 +1404,314 @@
     }
 
     // ------------------------------------------------------------------
+    // The hand editor (Painterro)
+    //
+    // Needs no key and spends nothing. One Painterro instance, loaded on first
+    // use and reused; `state.editing` says what is open in it, because the
+    // save handler is fixed when the instance is made.
+    // ------------------------------------------------------------------
+
+    /** Formats a canvas can write; anything else (gif, svg, bmp) is saved as PNG. */
+    var CANVAS_TYPES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+
+    function mimeOfPath(path) {
+        var ext = String(path || '').split('.').pop().toLowerCase();
+        return { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' }[ext] || '';
+    }
+
+    function setMode(mode, remember) {
+        mode = mode === 'editor' ? 'editor' : 'ai';
+        $('ai-view-ai').hidden = mode !== 'ai';
+        $('ai-view-editor').hidden = mode !== 'editor';
+        ['ai', 'editor'].forEach(function (m) {
+            $('ai-mode-' + m).setAttribute('aria-selected', m === mode ? 'true' : 'false');
+        });
+        if (remember) {
+            try { window.localStorage.setItem('aimage.mode', mode); } catch (e) { /* storage blocked */ }
+        }
+    }
+
+    function initialMode() {
+        var match = /[?&]mode=(ai|editor)\b/.exec(window.location.search);
+        if (match) { return match[1]; }
+        try { return window.localStorage.getItem('aimage.mode') || 'ai'; } catch (e) { return 'ai'; }
+    }
+
+    function toast(message, kind) {
+        var el = $('ai-toast');
+        clearTimeout(state.toastTimer);
+        el.textContent = message || '';
+        el.className = 'ai-toast' + (kind ? ' is-' + kind : '');
+        el.hidden = !message;
+        if (message) {
+            state.toastTimer = setTimeout(function () { el.hidden = true; }, kind === 'error' ? 8000 : 4000);
+        }
+    }
+
+    /**
+     * What to make fullscreen.
+     *
+     * The manager's frame carries no `allowfullscreen`, so this document may
+     * not go fullscreen itself. It is same-origin with the manager, though,
+     * and the frame element it sits in may: that element, made fullscreen
+     * from the manager's own document, is this page at the size of the screen.
+     */
+    function screenTarget() {
+        var target = document.documentElement;
+        try {
+            var win = window;
+            while (win.frameElement) {
+                target = win.frameElement;
+                win = win.parent;
+            }
+        } catch (e) { /* a cross-origin ancestor: stop at the last frame we may touch */ }
+        return target;
+    }
+
+    function isFullscreen() {
+        var doc = screenTarget().ownerDocument;
+        return !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+    }
+
+    function enterFullscreen() {
+        var el = screenTarget();
+        var request = el.requestFullscreen || el.webkitRequestFullscreen;
+        if (!request || isFullscreen()) { return; }
+        try {
+            var result = request.call(el);
+            if (result && result.catch) { result.catch(function () { /* refused: the overlay still fills the page */ }); }
+        } catch (e) { /* idem */ }
+    }
+
+    function exitFullscreen() {
+        var doc = screenTarget().ownerDocument;
+        var exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+        if (!exit || !isFullscreen()) { return; }
+        try {
+            var result = exit.call(doc);
+            if (result && result.catch) { result.catch(function () {}); }
+        } catch (e) {}
+    }
+
+    function renderScreenButton() {
+        var button = $('ai-editor-screen');
+        var on = isFullscreen();
+        var label = on ? L.editor_exit_fullscreen : L.editor_fullscreen;
+        button.title = label;
+        button.setAttribute('aria-label', label);
+        button.querySelector('i').className = 'fa ' + (on ? 'fa-compress' : 'fa-expand');
+    }
+
+    function loadPainterro() {
+        if (state.painterLoad) { return state.painterLoad; }
+
+        state.painterLoad = new Promise(function (resolve, reject) {
+            if (window.Painterro) { resolve(); return; }
+            var script = document.createElement('script');
+            script.src = CFG.editor.bundleUrl;
+            script.onload = function () { if (window.Painterro) { resolve(); } else { reject(); } };
+            script.onerror = reject;
+            document.head.appendChild(script);
+        }).then(function () {
+            state.painter = window.Painterro({
+                // Our own container. Without one Painterro dispatches its tool
+                // events on `#app`, which is not on this page, and every tool
+                // click throws.
+                id: 'ai-painter',
+                language: CFG.editor.language,
+                // Every tool, including the ones Painterro hides by default. Its own
+                // "open" is left out: what is open is ours to know, for saving.
+                hiddenTools: ['open'],
+                hideByEsc: false,
+                activeColor: '#e11d48',
+                colorScheme: { activeControl: '#2f6fd0', hoverControlContent: '#2f6fd0' },
+                saveHandler: saveEdit,
+                onBeforeClose: function (hasUnsaved, doClose) {
+                    if (!hasUnsaved || window.confirm(L.editor_discard)) { doClose(); }
+                },
+                onHide: closedEditor,
+                onImageFailedOpen: function () { toast(L.editor_open_failed, 'error'); }
+            });
+        });
+
+        state.painterLoad.catch(function () {
+            state.painterLoad = null;
+            toast(L.editor_load_failed, 'error');
+        });
+
+        return state.painterLoad;
+    }
+
+    /**
+     * Open the editor on a site image (`source`), a local file (`file`), or a blank canvas.
+     *
+     * Fullscreen is asked for first, while the click that got here still
+     * counts as one: the bundle may take a moment to load the first time.
+     */
+    function openEditor(what) {
+        what = what || {};
+        enterFullscreen();
+
+        loadPainterro().then(function () {
+            var mime = what.mime || (what.file && what.file.type) || mimeOfPath(what.source);
+
+            state.editing = {
+                source: what.source || null,
+                name: what.file ? what.file.name : '',
+                mime: CANVAS_TYPES[mime] ? mime : 'image/png',
+                replaceNext: false
+            };
+
+            $('ai-editor-replace').hidden = !(CFG.editor.canReplace && state.editing.source && CANVAS_TYPES[mime]);
+            $('ai-editor-chrome').hidden = false;
+            renderScreenButton();
+
+            if (what.source) {
+                state.painter.show(url('/editor/image', { path: what.source }), mime || undefined);
+            } else if (what.file) {
+                var reader = new FileReader();
+                reader.onload = function () { state.painter.show(String(reader.result), what.file.type); };
+                reader.onerror = function () { toast(L.editor_open_failed, 'error'); };
+                reader.readAsDataURL(what.file);
+            } else {
+                state.painter.show();
+            }
+        });
+    }
+
+    function closedEditor() {
+        // Painterro hides itself once while being built, before anything is
+        // open; that must not undo the fullscreen the opening click asked for.
+        if (!state.editing) { return; }
+        $('ai-editor-chrome').hidden = true;
+        state.editing = null;
+        exitFullscreen();
+    }
+
+    /** Painterro's save: a copy beside the original, or over it when asked and allowed. */
+    function saveEdit(image, done) {
+        var editing = state.editing || {};
+        var replace = !!editing.replaceNext;
+        editing.replaceNext = false;
+
+        var type = editing.mime || 'image/png';
+        var form = new FormData();
+        form.append('image', image.asBlob(type, 0.92), 'edited.' + CANVAS_TYPES[type]);
+
+        if (editing.source) {
+            form.append('source', editing.source);
+        } else {
+            form.append('folder', $('ai-editor-folder') ? $('ai-editor-folder').value : '');
+            form.append('name', editing.name || '');
+        }
+        if (replace) { form.append('replace', '1'); }
+
+        toast(L.editor_saving);
+
+        api('POST', '/editor/save', form).then(function (res) {
+            if (!res.ok) {
+                toast(res.message, 'error');
+                done(false);
+                return;
+            }
+
+            done(true);
+            toast(String(L.editor_saved).replace('%s', res.file.path));
+            showLastSaved(res.file);
+
+            // An open job may be showing the image that just changed.
+            if (state.jobUuid) { pollJob(); }
+        }, function () {
+            toast(L.editor_load_failed, 'error');
+            done(false);
+        });
+    }
+
+    function showLastSaved(file) {
+        var host = $('ai-editor-last');
+        if (!host) { return; }
+        host.innerHTML = '';
+
+        var img = document.createElement('img');
+        img.src = url('/editor/image', { path: file.path, t: Date.now() });
+        img.alt = file.name || file.path;
+        host.appendChild(img);
+
+        var body = document.createElement('div');
+        body.className = 'ai-editor-last-body';
+
+        var path = document.createElement('code');
+        path.textContent = file.path;
+        body.appendChild(path);
+
+        var row = document.createElement('div');
+        row.className = 'ai-row';
+
+        var again = document.createElement('button');
+        again.type = 'button';
+        again.className = 'ai-btn ai-btn-small';
+        again.textContent = L.editor_edit_again;
+        again.addEventListener('click', function () { openEditor({ source: file.path, mime: file.mime }); });
+        row.appendChild(again);
+
+        var locate = document.createElement('button');
+        locate.type = 'button';
+        locate.className = 'ai-btn ai-btn-small';
+        locate.textContent = L.files_locate;
+        locate.addEventListener('click', function () { inspectFile(file.path); });
+        row.appendChild(locate);
+
+        body.appendChild(row);
+        host.appendChild(body);
+        host.hidden = false;
+    }
+
+    function bindEditor() {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-mode]'), function (tab) {
+            tab.addEventListener('click', function () { setMode(tab.dataset.mode, true); });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-mode-switch]'), function (button) {
+            button.addEventListener('click', function () { setMode(button.dataset.modeSwitch, true); });
+        });
+        setMode(initialMode(), false);
+
+        if (!CFG.editor || !CFG.editor.available) { return; }
+
+        $('ai-editor-folder').value = (CFG.defaults && CFG.defaults.output_folder) || '';
+
+        $('ai-editor-site').addEventListener('click', function () {
+            // Browsing to pick an image, not a folder: nothing here changes where anything goes.
+            state.filesPicking = false;
+            state.filesSelect = null;
+            $('ai-files-use').hidden = true;
+            $('ai-files').hidden = false;
+            browse(($('ai-editor-folder').value || '').trim());
+        });
+        $('ai-editor-browse').addEventListener('click', function () { openFiles($('ai-editor-folder')); });
+
+        $('ai-editor-upload').addEventListener('change', function () {
+            var file = this.files && this.files[0];
+            this.value = '';
+            if (file) { openEditor({ file: file }); }
+        });
+        $('ai-editor-blank').addEventListener('click', function () { openEditor({}); });
+
+        $('ai-editor-screen').addEventListener('click', function () {
+            if (isFullscreen()) { exitFullscreen(); } else { enterFullscreen(); }
+        });
+        $('ai-editor-replace').addEventListener('click', function () {
+            if (!state.painter || !state.editing || !window.confirm(L.editor_replace_confirm)) { return; }
+            state.editing.replaceNext = true;
+            state.painter.save();
+        });
+
+        var doc = screenTarget().ownerDocument;
+        ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (name) {
+            doc.addEventListener(name, function () { if (state.editing) { renderScreenButton(); } });
+        });
+    }
+
+    // ------------------------------------------------------------------
     // Wiring
     // ------------------------------------------------------------------
 
@@ -1434,7 +1783,7 @@
 
         $('ai-reply-send').addEventListener('click', sendReply);
 
-        $('ai-browse').addEventListener('click', openFiles);
+        $('ai-browse').addEventListener('click', function () { openFiles($('ai-folder')); });
         $('ai-files-close').addEventListener('click', closeFiles);
 
         $('ai-files-up').addEventListener('click', function () {
@@ -1446,7 +1795,7 @@
             // changing where results go, and "looking at a file cannot move a
             // task's output" is worth asserting rather than leaving to CSS.
             if (!state.files || !state.filesPicking) { return; }
-            $('ai-folder').value = state.files.folder;
+            (state.filesTarget || $('ai-folder')).value = state.files.folder;
             closeFiles();
         });
 
@@ -1468,6 +1817,7 @@
             siteSave.addEventListener('click', function () { saveKey('site', $('ai-key-site-input').value.trim()); });
         }
 
+        bindEditor();
         boot();
     });
 })();

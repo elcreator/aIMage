@@ -26,6 +26,31 @@ Before you commit, the model picker shows **what it will cost and how long it wi
 the provenance of both: a fixed tariff reads differently from a median of past runs, and a
 seeded latency prior is labelled an estimate rather than dressed up as a measurement.
 
+## Image editor (no key needed)
+
+The module opens on a choice: **AI workbench** or **Image editor**. The editor is
+[Painterro](https://github.com/devforth/painterro) and needs no API key and spends nothing: crop,
+rotate, resize, draw, shapes and arrows, text, blur/pixelate, fill, erase, undo/redo and zoom.
+
+- Open an image from the site (the same scoped browser as the workbench), a file from your
+  computer, or a blank canvas. Every image in the file preview and every before/after image of a
+  job also has an **Edit image** button.
+- It opens **full screen**. The manager's frame does not allow fullscreen itself, so the module
+  makes the frame it sits in fullscreen from the manager's document; the button in the top
+  right corner toggles it, and Esc leaves it.
+- Saving writes a copy next to the original (`photo-edited.jpg`, then `photo-edited-1.jpg`), in
+  the original's format when a canvas can write it (PNG, JPEG, WebP) and as PNG otherwise. New
+  and uploaded images go to the folder chosen on the editor tab. It is the same file boundary as
+  AI results: you can only open what you may read and only write where you may write, and the
+  bytes are checked to be an image the site accepts.
+- **Save over the original** appears only where `files.allow_overwrite` is on, and only for the
+  same format.
+
+Painterro is vendored as a build in `public/painterro/` with its MIT licence and the tag and
+commit it was built from (`VERSION`). Rebuild it with `ci/build-painterro.sh` (Docker, `node:16`
+because Painterro's toolchain predates current Node; `PAINTERRO_REF=v1.2.93` for another tag).
+The page loads it from the module's own route on first use - there is still no publish step.
+
 ## Requirements
 
 - Evolution CMS **3.5.2+** with the system task registry
@@ -62,6 +87,16 @@ same key, same file scope, same job ownership; every tool is a proxy to the page
 
 Jobs need the scheduler running, exactly as on the page. Disable with `AIMAGE_MCP=false`; move to
 another eMCP server handle with `AIMAGE_MCP_SERVER`.
+
+## Your own computer (with aMount)
+
+With aMount installed, a job can also send its results to any aMount mount - a cloud drive, or
+one of the person's own computers through ai.artur.work: `deliver_to` (a mount name or uuid, or
+a computer's name such as `mypc`) and `deliver_folder` on `aimage.job.create`. Each image is its
+own delivery; an existing file there is kept, and every refusal is listed per file in the job
+(`deliveries`). Images *on* a computer are fetched into the site first with `amount.fetch`. The
+same aIMage key serves aMount's computer mounts - allow "Shared folders on your computers" for it
+on the ai.artur.work profile.
 
 ## Keys
 
@@ -211,3 +246,8 @@ misunderstood:
 ## Licence
 
 GPL-3.0-or-later.
+
+`public/painterro/` is [Painterro](https://github.com/devforth/painterro): a dependency-free HTML5 canvas image editor -
+crop, resize, rotate, draw, text, blur and fill - that embeds in a web page. MIT - see
+`public/painterro/LICENSE` and the bundled third-party notices in
+`public/painterro/painterro.min.js.LICENSE.txt`.

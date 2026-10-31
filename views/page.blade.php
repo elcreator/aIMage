@@ -35,6 +35,19 @@
         @endif
     </header>
 
+    {{-- Two ways in. The editor is a tool of its own: it needs no key, spends
+         nothing, and is offered even when the AI side cannot be used yet. --}}
+    <nav class="ai-modes" role="tablist" aria-label="{{ __('aIMage::global.title') }}">
+        <button type="button" role="tab" class="ai-mode" id="ai-mode-ai" data-mode="ai" aria-selected="true" aria-controls="ai-view-ai">
+            <i class="fa fa-magic" aria-hidden="true"></i> {{ __('aIMage::global.mode_ai') }}
+        </button>
+        <button type="button" role="tab" class="ai-mode" id="ai-mode-editor" data-mode="editor" aria-selected="false" aria-controls="ai-view-editor">
+            <i class="fa fa-paint-brush" aria-hidden="true"></i> {{ __('aIMage::global.mode_editor') }}
+        </button>
+    </nav>
+
+    <div id="ai-view-ai" role="tabpanel" aria-labelledby="ai-mode-ai">
+
     {{-- The money behind the key. Hidden until /account answers; a zero balance or a
          reached cap becomes a prompt with the way to fix it, not a failed step later. --}}
     <div class="ai-alert ai-alert-warn" id="ai-balance-alert" hidden>
@@ -125,6 +138,13 @@
         @endif
 
         <p class="ai-msg" id="ai-key-msg" role="status"></p>
+
+        <p class="ai-hint ai-key-editor">
+            {{ __('aIMage::global.editor_no_key_hint') }}
+            <button type="button" class="ai-btn ai-btn-small" data-mode-switch="editor">
+                <i class="fa fa-paint-brush" aria-hidden="true"></i> {{ __('aIMage::global.mode_editor') }}
+            </button>
+        </p>
     </section>
 
     <div class="ai-body" id="ai-body">
@@ -257,6 +277,45 @@
 
         </main>
     </div>
+
+    </div>{{-- #ai-view-ai --}}
+
+    {{-- The hand editor. Painterro is loaded on first use and opens over the
+         whole screen; saving goes through the same file scope as AI results. --}}
+    <section class="ai-panel ai-editor" id="ai-view-editor" role="tabpanel" aria-labelledby="ai-mode-editor" hidden>
+        <h2>{{ __('aIMage::global.editor_title') }}</h2>
+        <p class="ai-hint">{{ __('aIMage::global.editor_intro') }}</p>
+
+        @if (!$editor['available'])
+            <p class="ai-msg is-error">{{ __('aIMage::global.editor_unavailable') }}</p>
+        @else
+            <div class="ai-editor-actions">
+                <button type="button" class="ai-btn ai-btn-primary" id="ai-editor-site">
+                    <i class="fa fa-folder-open" aria-hidden="true"></i> {{ __('aIMage::global.editor_open_site') }}
+                </button>
+                <label class="ai-btn" for="ai-editor-upload">
+                    <i class="fa fa-upload" aria-hidden="true"></i> {{ __('aIMage::global.editor_open_file') }}
+                </label>
+                <input type="file" id="ai-editor-upload" accept="image/*" hidden>
+                <button type="button" class="ai-btn" id="ai-editor-blank">
+                    <i class="fa fa-file-o" aria-hidden="true"></i> {{ __('aIMage::global.editor_new') }}
+                </button>
+            </div>
+
+            <label class="ai-field ai-field-narrow ai-editor-folder">
+                <span>{{ __('aIMage::global.editor_new_folder') }}</span>
+                <span class="ai-folder-row">
+                    <input type="text" id="ai-editor-folder" spellcheck="false" autocomplete="off">
+                    <button type="button" class="ai-btn ai-btn-small" id="ai-editor-browse">
+                        {{ __('aIMage::global.files_browse') }}
+                    </button>
+                </span>
+            </label>
+
+            <div class="ai-editor-last" id="ai-editor-last" hidden></div>
+        @endif
+        <p class="ai-msg" id="ai-editor-msg" role="status"></p>
+    </section>
 </div>
 
 <script>
@@ -271,6 +330,7 @@
         'batching' => $batching,
         'canManageSiteKey' => $canManageSiteKey,
         'features' => $features,
+        'editor' => $editor,
         'lang' => [
             'est_cost' => __('aIMage::global.est_cost'),
             'est_time' => __('aIMage::global.est_time'),
@@ -354,6 +414,19 @@
             'files_locate' => __('aIMage::global.files_locate'),
             'turn_user' => __('aIMage::global.turn_user'),
             'turn_assistant' => __('aIMage::global.turn_assistant'),
+            'mode_ai' => __('aIMage::global.mode_ai'),
+            'mode_editor' => __('aIMage::global.mode_editor'),
+            'editor_edit' => __('aIMage::global.editor_edit'),
+            'editor_fullscreen' => __('aIMage::global.editor_fullscreen'),
+            'editor_exit_fullscreen' => __('aIMage::global.editor_exit_fullscreen'),
+            'editor_replace' => __('aIMage::global.editor_replace'),
+            'editor_replace_confirm' => __('aIMage::global.editor_replace_confirm'),
+            'editor_discard' => __('aIMage::global.editor_discard'),
+            'editor_saved' => __('aIMage::global.editor_saved'),
+            'editor_saving' => __('aIMage::global.editor_saving'),
+            'editor_load_failed' => __('aIMage::global.editor_load_failed'),
+            'editor_open_failed' => __('aIMage::global.editor_open_failed'),
+            'editor_edit_again' => __('aIMage::global.editor_edit_again'),
         ],
     ]);
 </script>
@@ -387,6 +460,20 @@
         <p class="ai-msg" id="ai-files-msg" role="status"></p>
     </div>
 </div>
+
+{{-- Over Painterro while it is open: the screen toggle, and replacing the
+     original where the site allows it. Painterro's own tools stay untouched. --}}
+<div class="ai-painter" id="ai-painter" hidden></div>
+<div class="ai-editor-chrome" id="ai-editor-chrome" hidden>
+    <button type="button" class="ai-btn ai-btn-small" id="ai-editor-replace" hidden>
+        <i class="fa fa-save" aria-hidden="true"></i> {{ __('aIMage::global.editor_replace') }}
+    </button>
+    <button type="button" class="ai-btn ai-btn-small ai-btn-icon" id="ai-editor-screen"
+            title="{{ __('aIMage::global.editor_fullscreen') }}" aria-label="{{ __('aIMage::global.editor_fullscreen') }}">
+        <i class="fa fa-expand" aria-hidden="true"></i>
+    </button>
+</div>
+<p class="ai-toast" id="ai-toast" role="status" hidden></p>
 
 @include('aIMage::partials.script')
 </body>

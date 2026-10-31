@@ -1,6 +1,7 @@
 <?php
 
 use Elcreator\aIMage\Http\Controllers\CatalogController;
+use Elcreator\aIMage\Http\Controllers\EditorController;
 use Elcreator\aIMage\Http\Controllers\JobController;
 use Elcreator\aIMage\Http\Controllers\PageController;
 use Elcreator\aIMage\Http\Controllers\SettingsController;
@@ -35,6 +36,11 @@ Route::get('/estimate', [CatalogController::class, 'estimate'])->name('aimage.es
 // the manager's own file-group permissions.
 Route::get('/files', [CatalogController::class, 'files'])->name('aimage.files');
 Route::get('/files/info', [CatalogController::class, 'fileInfo'])->name('aimage.files.info');
+
+// The hand editor (Painterro). Works without an API key.
+Route::get('/editor/painterro.js', [EditorController::class, 'bundle'])->name('aimage.editor.bundle');
+Route::get('/editor/image', [EditorController::class, 'image'])->name('aimage.editor.image');
+Route::post('/editor/save',[EditorController::class, 'save'])->name('aimage.editor.save');
 
 Route::post('/jobs', [JobController::class, 'store'])->name('aimage.jobs.store');
 Route::get('/jobs', [JobController::class, 'index'])->name('aimage.jobs.index');

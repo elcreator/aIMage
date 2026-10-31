@@ -90,6 +90,11 @@ final class Jobs
             );
         }
 
+        // Results also go to an aMount mount - a cloud drive or one of the person's own
+        // computers ("mypc") - checked now, so a typo stops the job before it costs anything.
+        $deliverTo = trim((string) ($options['deliver_to'] ?? ''));
+        $deliverTo = $deliverTo === '' ? '' : ResultDelivery::check($this->actor->userId(), $deliverTo);
+
         $now = now();
 
         $job = Job::query()->create([
@@ -102,6 +107,8 @@ final class Jobs
             'voice_model' => $this->pickModel($options, 'voice_model', 'voice'),
             'controls_json' => $this->controlsFrom($options),
             'output_folder' => $folder,
+            'deliver_to' => $deliverTo,
+            'deliver_folder' => mb_substr(trim((string) ($options['deliver_folder'] ?? '')), 0, 191),
             'planner_turns' => 0,
             'created_at' => $now,
             'updated_at' => $now,
@@ -376,6 +383,9 @@ final class Jobs
             'text_model' => (string) $job->text_model,
             'image_model' => (string) $job->image_model,
             'output_folder' => (string) $job->output_folder,
+            'deliver_to' => (string) ($job->deliver_to ?? ''),
+            'deliver_folder' => (string) ($job->deliver_folder ?? ''),
+            'deliveries' => is_array($job->result_json['deliveries'] ?? null) ? $job->result_json['deliveries'] : null,
             'controls' => $job->controls(),
             'steps_detail' => $steps,
             'messages' => $messages,

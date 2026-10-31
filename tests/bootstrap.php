@@ -100,7 +100,12 @@ final class AIMageTestCore
 
     public function make(string $abstract, array $parameters = [])
     {
-        return $abstract === 'config' ? $this->repository : null;
+        return match ($abstract) {
+            'config' => $this->repository,
+            // The core's own `__()` resolves this, and wins over the stub below once loaded.
+            'translator' => new AIMageEchoTranslator(),
+            default => null,
+        };
     }
 
     public function getConfig(string $key, $default = null)
@@ -115,6 +120,21 @@ final class AIMageTestCore
             'use_udperms' => true,
             'site_url' => 'https://example.test/',
         ];
+    }
+}
+
+/** Echoes the key back with `:name` placeholders filled, like the `__()` stub below. */
+final class AIMageEchoTranslator
+{
+    public function get($key, array $replace = [], $locale = null): string
+    {
+        $text = (string) $key;
+
+        foreach ($replace as $search => $value) {
+            $text = str_replace(':' . $search, (string) $value, $text);
+        }
+
+        return $text;
     }
 }
 

@@ -64,6 +64,8 @@ class Job extends Model
         'voice_model',
         'controls_json',
         'output_folder',
+        'deliver_to',
+        'deliver_folder',
         'estimate_json',
         'planner_turns',
         'steps_total',

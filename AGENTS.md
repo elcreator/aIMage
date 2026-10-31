@@ -202,6 +202,7 @@ src/
   Services/Catalog.php         models, estimates, files
   Services/Jobs.php            create / show / reply / approve / models / cancel, and the job shape
   Services/Keys.php            saving a verified key
+  Services/Editor.php          the hand editor (Painterro): open/save through ImageScope, no key needed
   Services/WorkbenchException  one refusal shape: error code, translated message, HTTP status
   Http/Controllers/*           thin: request -> service call -> JSON (Controller::respond)
   Mcp/WorkbenchTool.php        base: an MCP tool that is one call into Services\*
@@ -210,6 +211,7 @@ src/
   Console/BatchHandler.php     one worker slice of one job
   Http/                        routes.php + controllers
 views/                         the module page (assets inlined; no publish step)
+public/painterro/              vendored Painterro build + MIT LICENSE + VERSION; rebuild with ci/build-painterro.sh
 tests/                         database-backed Pest suite; see *Running the tests*
 ```
 

@@ -256,4 +256,54 @@
         .ai-files-body { flex-direction: column; }
         .ai-files-preview { width: auto; flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--ai-border); }
     }
+
+    /* AI workbench / image editor. */
+    .ai-modes { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--ai-border); margin-bottom: 1rem; }
+    .ai-mode {
+        font: inherit; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+        padding: 0.5rem 0.9rem; color: var(--ai-muted); cursor: pointer;
+    }
+    .ai-mode:hover { color: var(--ai-text); }
+    .ai-mode[aria-selected="true"] { color: var(--ai-text); border-bottom-color: var(--ai-accent); font-weight: 600; }
+    .ai-mode .fa { margin-right: 0.3rem; }
+    .ai-key-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+
+    .ai-editor h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+    .ai-editor-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+    .ai-editor-actions .fa, .ai-files-preview .ai-btn .fa { margin-right: 0.3rem; }
+    .ai-editor-folder { max-width: 520px; }
+    .ai-editor-last {
+        display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;
+        margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ai-border);
+    }
+    .ai-editor-last img {
+        max-width: 160px; max-height: 120px; border-radius: 6px; border: 1px solid var(--ai-border);
+        background: var(--ai-bg);
+    }
+    .ai-editor-last-body { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+    .ai-editor-last-body code { word-break: break-all; font-size: 0.8rem; }
+    .ai-editor-last-body .ai-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .ai-files-preview .ai-btn-edit { width: 100%; margin-top: 0.6rem; }
+
+    /* An edit button on a step's image, so a result can be touched up by hand. */
+    .ai-step figure { position: relative; }
+    .ai-fig-edit {
+        position: absolute; top: 0.3rem; right: 0.3rem; padding: 0.15rem 0.4rem; font-size: 0.75rem;
+        border: 1px solid var(--ai-border); border-radius: 4px; background: rgba(255, 255, 255, 0.92);
+        color: var(--ai-text); cursor: pointer; opacity: 0; transition: opacity 0.12s;
+    }
+    .ai-step figure:hover .ai-fig-edit, .ai-fig-edit:focus-visible { opacity: 1; }
+    @media (hover: none) { .ai-fig-edit { opacity: 1; } }
+
+    /* Painterro's container: edge to edge, above everything. */
+    .ai-painter { position: fixed; inset: 0; z-index: 10000; background: #999; }
+    .ai-editor-chrome { position: fixed; top: 0.5rem; right: 0.5rem; z-index: 10001; display: flex; gap: 0.35rem; }
+    .ai-editor-chrome .ai-btn { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+    .ai-editor-chrome .ai-btn .fa-save { margin-right: 0.3rem; }
+    .ai-toast {
+        position: fixed; left: 50%; bottom: 3.5rem; transform: translateX(-50%); z-index: 10002; margin: 0;
+        max-width: 90vw; padding: 0.55rem 0.9rem; border-radius: 6px; background: var(--ai-text); color: #fff;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); font-size: 0.85rem;
+    }
+    .ai-toast.is-error { background: var(--ai-danger); }
 </style>
