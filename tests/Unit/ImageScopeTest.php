@@ -803,3 +803,44 @@ test('the hidden attribute outranks any class that sets display', function () {
     expect($styles)->toContain('[hidden] { display: none !important; }')
         ->and($script)->toContain('.hidden = true');
 });
+
+// ---------------------------------------------------------------------------
+// Links
+// ---------------------------------------------------------------------------
+
+/** `images/public/alias` leading to `images/private`, or null where links cannot be made. */
+function aimageLinkedPrivateFolder(): ?string
+{
+    aimagePutImage('images/private/secret.png');
+    aimagePutImage('images/public/open.png');
+    $link = AIMAGE_TEST_ROOT . '/assets/images/public/alias';
+
+    return @symlink(AIMAGE_TEST_ROOT . '/assets/images/private', $link) ? $link : null;
+}
+
+test('a link does not open what its target keeps closed', function () {
+    aimageUser(7, 3, [4]);
+    aimageSetFileRoot('assets');
+    aimageRestrict('images/private', 9);
+    $link = aimageLinkedPrivateFolder() ?? $this->markTestSkipped('This system cannot create links.');
+
+    $scope = ImageScope::forUser(7);
+
+    expect($scope->canRead('images/public/alias/secret.png'))->toBeFalse()
+        ->and($scope->read('images/public/alias/secret.png'))->toBeNull()
+        ->and($scope->canWrite('images/public/alias/new.png'))->toBeFalse()
+        ->and(array_column($scope->listImages('images/public', true), 'path'))->toBe(['images/public/open.png']);
+
+    unlink($link);
+});
+
+test('a link opens to whoever may see its target', function () {
+    aimageUser(7, 3, [9]);
+    aimageSetFileRoot('assets');
+    aimageRestrict('images/private', 9);
+    $link = aimageLinkedPrivateFolder() ?? $this->markTestSkipped('This system cannot create links.');
+
+    expect(ImageScope::forUser(7)->canRead('images/public/alias/secret.png'))->toBeTrue();
+
+    unlink($link);
+});

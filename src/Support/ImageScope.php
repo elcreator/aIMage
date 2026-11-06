@@ -159,11 +159,13 @@ final class ImageScope
             return true;
         }
 
-        return FileManagerAccess::isAccessible(
-            $relative,
-            $this->groupIds,
-            $this->restrictionsFor($relative)
-        );
+        foreach ($this->namesOf($relative) as $name) {
+            if (!FileManagerAccess::isAccessible($name, $this->groupIds, $this->restrictionsFor($name))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -187,11 +189,44 @@ final class ImageScope
             return true;
         }
 
-        return FileManagerAccess::canModifyExistingPath(
-            $relative,
-            $this->groupIds,
-            $this->restrictionsFor($relative)
-        );
+        foreach ($this->namesOf($relative) as $name) {
+            if (!FileManagerAccess::canModifyExistingPath($name, $this->groupIds, $this->restrictionsFor($name))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * A path, and where it really is when a link leads there.
+     *
+     * `file_groups` rows are keyed by name, so a link is a second name for a
+     * file that keeps the restrictions of the first. A path that does not exist
+     * yet is judged by its nearest existing ancestor.
+     *
+     * @return list<string>
+     */
+    private function namesOf(?string $relative): array
+    {
+        $relative = FileManagerAccess::normalizeRelativePath($relative);
+        $path = $this->root . '/' . $relative;
+        $missing = '';
+
+        while (($real = realpath($path)) === false) {
+            $parent = dirname($path);
+
+            if ($parent === $path) {
+                return [$relative];
+            }
+
+            $missing = '/' . basename($path) . $missing;
+            $path = $parent;
+        }
+
+        $target = $this->relativeOf(str_replace('\\', '/', $real) . $missing);
+
+        return $target === null || $target === $relative ? [$relative] : [$relative, $target];
     }
 
     /**
