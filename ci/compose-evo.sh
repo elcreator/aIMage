@@ -19,9 +19,9 @@
 #   --evo-src <path>  build from a local Evolution checkout instead of cloning
 #                     EVO_REPO@EVO_REF (its vendor tree is not copied - it may
 #                     have been built on another OS - and is rebuilt instead)
-#   --dev             install the core's dev dependencies too (Pest lives
-#                     there; the test job needs it, a distributable build does
-#                     not)
+#   --dev             install the dev dependencies too, including the CMS's
+#                     test tools (Pest); the test job needs them, a
+#                     distributable build does not
 #   --install         run the sqlite installer, publish the plugin's assets and
 #                     run its migrations, leaving a CMS that is ready to serve
 #
@@ -150,6 +150,13 @@ step "composer install (core)"
 # cache - the directory the workflows hand to actions/cache and the local image
 # keeps on a volume - and overriding it means re-downloading everything.
 ( cd "$target/core" && composer install "${composer_args[@]}" )
+
+# Cores after 3.5.9 keep Pest in the *root* composer.json, apart from the
+# runtime tree; older ones have it in core's require-dev and need no extra step.
+if [ "$with_dev" = 1 ] && [ ! -f "$target/core/vendor/pestphp/pest/bin/pest" ]; then
+    step "composer install (test tools)"
+    ( cd "$target" && composer install "${composer_args[@]}" )
+fi
 
 # ------------------------------------------------------------- the plugin ---
 

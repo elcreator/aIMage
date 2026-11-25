@@ -32,8 +32,8 @@ shift || true
 
 case "$command" in
     test)
-        # --dev: the borrowed-core test mode runs on the core's Pest binary,
-        # which is a dev dependency of the core.
+        # --dev: the borrowed-core test mode runs on the CMS's Pest binary,
+        # which is a dev dependency of the CMS.
         "$here/compose-evo.sh" "$build_dir" "${compose_args[@]}" --dev
         "$here/run-tests.sh" "$build_dir" "$@"
         ;;

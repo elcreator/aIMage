@@ -7,7 +7,7 @@
 #
 #   borrowed-core  The plugin has no vendor tree. Its bootstrap borrows the
 #                  core's autoloader (EVO_CORE_PATH_TEST) and it is run with
-#                  the core's Pest binary. Needs a core built with --dev.
+#                  the CMS's Pest binary. Needs a tree built with --dev.
 #   own-vendor     The plugin has its own vendor tree, with Evolution CMS in it
 #                  as an ordinary composer dependency. `composer test`.
 #   none           No suite. Only the install smoke test in ci/smoke.sh covers
@@ -40,11 +40,20 @@ case "$TEST_MODE" in
         fi
 
         evo_dir=$(cd "$evo_dir" && pwd)
+
+        # Cores up to 3.5.9 carry Pest in core/vendor, later ones in the root
+        # vendor tree. Pest resolves its test directory against the parent of
+        # the vendor tree it lives in, and refuses to start if it is missing.
         pest="$evo_dir/core/vendor/pestphp/pest/bin/pest"
+        test_dir='tests'
+        if [ ! -f "$pest" ]; then
+            pest="$evo_dir/vendor/pestphp/pest/bin/pest"
+            test_dir='core/tests'
+        fi
 
         if [ ! -f "$pest" ]; then
-            echo "run-tests.sh: no Pest in $evo_dir/core/vendor." >&2
-            echo "The core must be built with dev dependencies: compose-evo.sh --dev" >&2
+            echo "run-tests.sh: no Pest in $evo_dir/core/vendor or $evo_dir/vendor." >&2
+            echo "The tree must be built with dev dependencies: compose-evo.sh --dev" >&2
             exit 1
         fi
 
@@ -52,7 +61,7 @@ case "$TEST_MODE" in
         # Run from the plugin so Pest picks up this repository's phpunit.xml and
         # its bootstrap, rather than the core's.
         cd "$plugin_dir"
-        EVO_CORE_PATH_TEST="$evo_dir/core" php "$pest" --no-coverage "$@"
+        EVO_CORE_PATH_TEST="$evo_dir/core" php "$pest" --test-directory="$test_dir" --no-coverage "$@"
         ;;
 
     own-vendor)

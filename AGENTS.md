@@ -259,13 +259,16 @@ CMS core's autoloader and Pest binary:
 
 ```bash
 cd /path/to/aIMage
-php /path/to/evolution/core/vendor/pestphp/pest/bin/pest --no-coverage
+php /path/to/evolution/vendor/pestphp/pest/bin/pest --test-directory=core/tests --no-coverage
 ```
 
+Cores up to 3.5.9 keep Pest in `core/vendor` instead: use
+`core/vendor/pestphp/pest/bin/pest` and drop `--test-directory`. `ci/run-tests.sh` handles both.
+
 Point `EVO_CORE_PATH_TEST` at a different core if yours is not the one hardcoded in
-`tests/bootstrap.php`. That core needs its dev dependencies installed:
-`composer install --no-scripts --no-plugins` inside `core/` (the committed autoloader is
-`--no-dev --classmap-authoritative`, so Pest will not load until you do).
+`tests/bootstrap.php`. That core needs its dev dependencies installed: `composer install` in the
+CMS root (up to 3.5.9: `composer install --no-scripts --no-plugins` inside `core/`, whose committed
+autoloader is `--no-dev --classmap-authoritative`).
 
 Layout, and why it is shaped this way:
 

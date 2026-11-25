@@ -26,7 +26,8 @@ if (!is_file($core . '/vendor/autoload.php')) {
 
 require $core . '/vendor/autoload.php';
 
-// This package's own namespace.
+// This package's own namespace. Prepended, because a core this package is
+// installed in has its own copy of it in vendor, and the suite must test this one.
 spl_autoload_register(static function (string $class): void {
     $prefix = 'Elcreator\\aIMage\\';
 
@@ -39,7 +40,7 @@ spl_autoload_register(static function (string $class): void {
     if (is_file($path)) {
         require $path;
     }
-});
+}, prepend: true);
 
 /**
  * A file tree for the suite to treat as the site.
