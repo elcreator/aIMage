@@ -83,7 +83,18 @@ same key, same file scope, same job ownership; every tool is a proxy to the page
 | `aimage.files`, `aimage.file_info` | what the manager may see |
 | `aimage.job.create` | a batch from a plain-language instruction — the planner (any text model) enhances prompts, asks back, estimates; the worker generates / edits / varies / upscales |
 | `aimage.job.show`, `aimage.jobs` | poll progress, read questions and results (paths + URLs) |
-| `aimage.job.reply`, `aimage.job.approve`, `aimage.job.models`, `aimage.job.cancel` | drive the job |
+| `aimage.job.reply`, `aimage.job.approve` | answer a planner question or approve the plan |
+| `aimage.job.models` | switch models for future work on an existing job |
+| `aimage.job.cancel` | stop remaining work on a job and keep saved images |
+
+To change models, select IDs from the text or image group in `aimage.models`.
+Send only the field or fields you want to change. A running job can switch
+models for future work. The image model must support all queued image actions.
+
+Use `aimage.job.cancel` when the user asks to stop the job. A worker stops when
+it next checks for cancellation, so provider work already submitted may still
+finish and incur charges. Use `aimage.job.show` to check progress or retrieve saved
+results, including images from a cancelled job.
 
 Jobs need the scheduler running, exactly as on the page. Disable with `AIMAGE_MCP=false`; move to
 another eMCP server handle with `AIMAGE_MCP_SERVER`.

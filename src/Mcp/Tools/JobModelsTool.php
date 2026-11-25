@@ -11,7 +11,13 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 
 #[Name('aimage.job.models')]
-#[Description('Switch the text and/or image model of a job before it executes.')]
+#[Description(
+    'Change the models for future work on an existing job you own. For a new job, set its models in aimage.job.create. '
+    . 'Get current model IDs from aimage.models. Pass one or both model fields. An omitted or blank field keeps its current value. '
+    . 'Requires a configured gateway key. Works on planning, waiting and running jobs. Finished jobs and unknown model IDs are rejected. '
+    . 'The text choice applies to future planner turns. The image choice must support the queued image actions and updates those steps. '
+    . 'In-flight and completed steps keep their model, as do upscale and describe steps. Returns the updated job.'
+)]
 class JobModelsTool extends WorkbenchTool implements WritesSite
 {
     protected function run(Actor $actor, Request $request): array
@@ -25,9 +31,9 @@ class JobModelsTool extends WorkbenchTool implements WritesSite
     public function schema(JsonSchema $schema): array
     {
         return [
-            'uuid' => $schema->string()->required()->description('Job uuid'),
-            'text_model' => $schema->string()->description('New planner model'),
-            'image_model' => $schema->string()->description('New image model'),
+            'uuid' => $schema->string()->required()->description('UUID of your unfinished job from aimage.jobs or aimage.job.create.'),
+            'text_model' => $schema->string()->description('Copy the model ID from an entry in groups.text returned by aimage.models. Omit to keep the current planner model.'),
+            'image_model' => $schema->string()->description('Copy the model ID from an entry in groups.image returned by aimage.models. Its actions must cover the queued image steps. Omit to keep the current image model.'),
         ];
     }
 }

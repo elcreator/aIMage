@@ -1,13 +1,83 @@
 <?php
 
 use Elcreator\aIMage\Console\BatchHandler;
+use Elcreator\aIMage\Gateway\ModelCatalog;
 use Elcreator\aIMage\Models\Job;
 use Elcreator\aIMage\Models\JobStep;
 use Elcreator\aIMage\Models\Message;
+use Elcreator\aIMage\Services\Actor;
+use Elcreator\aIMage\Services\Jobs;
+use Elcreator\aIMage\Services\WorkbenchException;
 use Elcreator\aIMage\Support\ApiKeys;
 use Elcreator\aIMage\Support\JobQueue;
 
 beforeEach(fn () => aimageReset());
+
+test('switching the image model updates only queued image work on a running job', function () {
+    aimageUser(7, 1);
+    ApiKeys::setUserKey(7, 'test-key');
+    (new ModelCatalog(aimageClient()))->snapshot();
+    $job = aimageJob(['status' => Job::STATUS_RUNNING]);
+    $queued = aimageStep($job);
+    $inFlight = aimageStep($job, ['status' => JobStep::STATUS_POLLING]);
+    $saved = aimageStep($job, ['status' => JobStep::STATUS_SUCCEEDED]);
+    $upscale = aimageStep($job, ['type' => JobStep::TYPE_UPSCALE, 'model' => 'Qubico/image-toolkit']);
+    $jobs = new Jobs(new Actor(7, true, true));
+
+    $result = $jobs->setModels($job->uuid, ['image_model' => 'gpt-image-1.5'])['job'];
+
+    expect($result['image_model'])->toBe('gpt-image-1.5')
+        ->and($result['text_model'])->toBe($job->text_model)
+        ->and($queued->fresh()->model)->toBe('gpt-image-1.5')
+        ->and($inFlight->fresh()->model)->toBe('gpt-image-1')
+        ->and($saved->fresh()->model)->toBe('gpt-image-1')
+        ->and($upscale->fresh()->model)->toBe('Qubico/image-toolkit');
+});
+
+test('an incompatible image model leaves both model choices intact', function () {
+    aimageUser(7, 1);
+    ApiKeys::setUserKey(7, 'test-key');
+    (new ModelCatalog(aimageClient()))->snapshot();
+    $job = aimageJob(['status' => Job::STATUS_AWAITING_APPROVAL]);
+    $step = aimageStep($job);
+    $jobs = new Jobs(new Actor(7, true, true));
+
+    expect(fn () => $jobs->setModels($job->uuid, ['text_model' => 'claude-haiku-4.5', 'image_model' => 'whisper-1']))
+        ->toThrow(WorkbenchException::class);
+    expect($job->fresh()->text_model)->toBe($job->text_model)
+        ->and($job->fresh()->image_model)->toBe($job->image_model)
+        ->and($step->fresh()->model)->toBe($job->image_model);
+});
+
+test('finished jobs reject model changes and cancellation returns their details', function () {
+    aimageUser(7, 1);
+    $job = aimageJob(['status' => Job::STATUS_SUCCEEDED]);
+    $jobs = new Jobs(new Actor(7, true, true));
+
+    expect(fn () => $jobs->setModels($job->uuid, ['image_model' => 'gpt-image-1.5']))
+        ->toThrow(WorkbenchException::class);
+    expect($jobs->cancel($job->uuid)['job']['status'])->toBe(Job::STATUS_SUCCEEDED);
+});
+
+test('cancelling a running job keeps saved images and flags the in-flight task', function () {
+    aimageUser(7, 1);
+    aimageSetFileRoot('assets');
+    $job = aimageJob(['status' => Job::STATUS_RUNNING]);
+    $saved = aimagePutImage('images/aimage/finished.png');
+    aimageStep($job, ['status' => JobStep::STATUS_SUCCEEDED, 'target_path' => 'images/aimage/finished.png']);
+    $task = JobQueue::enqueue($job);
+    $task->forceFill(['status' => 'running'])->save();
+    $jobs = new Jobs(new Actor(7, true, true));
+
+    $result = $jobs->cancel($job->uuid)['job'];
+
+    expect($result['status'])->toBe(Job::STATUS_CANCELLED)
+        ->and($result['steps_detail'][0]['target_path'])->toBe('images/aimage/finished.png')
+        ->and(is_file($saved))->toBeTrue()
+        ->and($task->fresh()->status)->toBe('running')
+        ->and($task->fresh()->cancellation_requested_at)->not->toBeNull()
+        ->and($jobs->cancel($job->uuid)['job'])->toBe($result);
+});
 
 // ---------------------------------------------------------------------------
 // Job state
