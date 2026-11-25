@@ -107,10 +107,15 @@ class aIMageServiceProvider extends ServiceProvider
      */
     protected function registerManagerModule(): void
     {
+        $managerPath = defined('EVO_MANAGER_PATH') ? EVO_MANAGER_PATH : EVO_BASE_PATH . 'manager/';
+        $icon = is_file($managerPath . 'media/style/common/icons/manager-icons.css')
+            ? 'evo-icon evo-icon-file-type-jpg'
+            : 'fa fa-file-image-o';
+
         $this->app->registerRoutingModule(
             self::MODULE_NAME,
             __DIR__ . '/Http/routes.php',
-            'fa fa-wand-magic-sparkles'
+            $icon
         );
     }
 

@@ -99,6 +99,14 @@ results, including images from a cancelled job.
 Jobs need the scheduler running, exactly as on the page. Disable with `AIMAGE_MCP=false`; move to
 another eMCP server handle with `AIMAGE_MCP_SERVER`.
 
+Agents learn the job loop (estimate, create, poll, reply, approve) from the `aimage` skill in
+`skills/aimage/`, installable as a Claude Code plugin from the eMCP marketplace:
+
+```bash
+claude plugin marketplace add evolution-cms/evo-mcp
+claude plugin install aimage@evolution-cms
+```
+
 ## Your own computer (with aMount)
 
 With aMount installed, a job can also send its results to any aMount mount - a cloud drive, or

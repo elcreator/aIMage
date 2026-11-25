@@ -1,0 +1,15 @@
+{
+  "name": "aimage",
+  "displayName": "aIMage for Evolution CMS",
+  "version": "1.0.0",
+  "description": "Manage aIMage jobs on Evolution CMS through eMCP. Estimate costs, generate, edit, analyze and upscale images, and manage work in progress.",
+  "author": {
+    "name": "Artur Kyryliuk",
+    "email": "mail@artur.work"
+  },
+  "homepage": "https://github.com/elcreator/aIMage",
+  "repository": "https://github.com/elcreator/aIMage",
+  "license": "MIT",
+  "keywords": ["evolution-cms", "mcp", "image-generation", "aimage"],
+  "dependencies": ["emcp"]
+}
